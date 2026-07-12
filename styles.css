@@ -1,0 +1,968 @@
+/* =========================================
+   VARIABLES GLOBALES Y RESETEO
+========================================= */
+:root {
+    --primary-color: #007bff;
+    --primary-hover: #0056b3;
+    --danger-color: #dc3545;
+    --danger-hover: #c82333;
+    --success-color: #28a745;
+    --bg-color: #f4f7f6;
+    --text-color: #333;
+    --card-bg: #ffffff;
+    --border-radius: 8px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    /* Evita el scroll horizontal en móviles */
+    overflow-x: hidden; 
+}
+
+/* =========================================
+   BARRA DE ESTADO DE RED (Service Worker)
+========================================= */
+.status-bar {
+    width: 100%;
+    padding: 5px 10px;
+    text-align: center;
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: white;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    transition: background-color 0.3s ease;
+}
+
+.status-bar.online {
+    background-color: var(--success-color);
+}
+
+.status-bar.offline {
+    background-color: var(--danger-color);
+}
+
+/* =========================================
+   CONTROL DE PANTALLAS (Vistas)
+========================================= */
+.screen {
+    display: none; /* Oculto por defecto */
+    padding-top: 35px; /* Espacio para la barra de estado */
+    min-height: 100vh;
+}
+
+.screen.active {
+    display: block; /* Muestra la pantalla activa */
+}
+
+/* =========================================
+   PANTALLA DE LOGIN
+========================================= */
+#login-screen {
+    display: none; /* Controlado por JS, se oculta temporalmente para evitar parpadeos */
+}
+
+#login-screen.active {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+#login-screen h2 {
+    margin-bottom: 20px;
+    color: var(--primary-color);
+}
+
+#login-screen input {
+    padding: 12px;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: var(--border-radius);
+    margin-bottom: 15px;
+    width: 80%;
+    max-width: 300px;
+    text-align: center;
+}
+
+/* =========================================
+   ELEMENTOS GENERALES (Botones e Inputs)
+========================================= */
+button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    font-size: 1rem;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+button:hover {
+    background-color: var(--primary-hover);
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+/* =========================================
+   PANTALLA PRINCIPAL TPV
+========================================= */
+header {
+    background-color: var(--card-bg);
+    padding: 8px 15px; /* Reducido de 15px 20px para hacerlo más delgado */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 10px; /* Reducido de 15px para acercarlo al contenido */
+}
+
+
+header h3 {
+    color: var(--primary-color);
+}
+
+header button {
+    padding: 6px 12px; /* Reducido de 8px 15px */
+    font-size: 0.85rem; /* Letra un poco más pequeña */
+    background-color: #6c757d;
+}
+
+
+#buscar-producto {
+    width: calc(100% - 40px);
+    margin: 0 20px 15px 20px;
+    padding: 12px;
+    font-size: 1rem;
+    border: 1px solid #ddd;
+    border-radius: var(--border-radius);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+}
+
+/* Layout principal: Catálogo y Carrito */
+.layout {
+    display: flex;
+    flex-direction: column; /* Apilado en móvil */
+    padding: 0 20px;
+    gap: 20px;
+}
+
+/* Catálogo (Grid de productos) */
+#catalogo-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 15px;
+    max-height: 50vh;
+    overflow-y: auto;
+    padding-bottom: 10px;
+    padding-top: 15px;
+}
+
+.producto-item {
+    background-color: var(--card-bg);
+    padding: 15px;
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    text-align: center;
+    cursor: pointer;
+    user-select: none; /* Evita que el texto se seleccione al hacer doble tap */
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.producto-item:active {
+    background-color: #e9ecef;
+    border-color: var(--primary-color);
+}
+
+/* =========================================
+   CARRITO DE COMPRAS - LISTA MEJORADA
+========================================= */
+#lista-carrito li {
+    display: flex;
+    flex-direction: column;
+    padding: 12px 0;
+    border-bottom: 1px solid #eee;
+    font-size: 0.95rem;
+}
+
+.item-info {
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: var(--primary-color);
+}
+
+.item-info small {
+    color: #6c757d;
+    font-weight: normal;
+}
+
+.item-controles {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+
+.item-controles button {
+    padding: 5px 12px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    border-radius: 4px;
+}
+
+.btn-restar, .btn-sumar {
+    background-color: #6c757d;
+}
+
+.btn-restar:hover, .btn-sumar:hover {
+    background-color: #5a6268;
+}
+
+.item-cantidad {
+    font-weight: bold;
+    font-size: 1.1rem;
+    min-width: 20px;
+    text-align: center;
+}
+
+.item-subtotal {
+    margin-left: auto;
+    font-weight: bold;
+}
+
+.btn-eliminar {
+    background-color: var(--danger-color);
+    margin-left: 10px;
+}
+
+.btn-eliminar:hover {
+    background-color: var(--danger-hover);
+}
+
+/* =========================================
+   MEDIA QUERIES (Para Tablets o PC)
+========================================= */
+@media (min-width: 768px) {
+    .layout {
+        flex-direction: row; /* Coloca el catálogo y carrito lado a lado */
+        align-items: flex-start;
+    }
+    
+    .productos {
+        flex: 2; /* El catálogo ocupa más espacio */
+    }
+
+    #catalogo-container {
+        max-height: 70vh; /* Más alto en pantallas grandes */
+    }
+
+    .carrito {
+        flex: 1; /* El carrito ocupa menos espacio */
+        position: sticky;
+        top: 60px;
+    }
+}
+
+/* =========================================
+   OPCIONES DE PAGO
+========================================= */
+.opciones-pago {
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: var(--bg-color);
+    border-radius: var(--border-radius);
+    border: 1px solid #eee;
+}
+
+.opciones-pago label {
+    font-weight: bold;
+    font-size: 0.95rem;
+    display: inline-block;
+    margin-bottom: 8px;
+}
+
+.opciones-pago select, 
+.opciones-pago input[type="text"]
+.opciones-pago input[type="number"] {
+    width: 100%;
+    padding: 10px;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    background-color: white;
+}
+
+.opciones-pago input[type="text"] {
+    margin-bottom: 0;
+    border-color: var(--primary-color);
+}
+
+/* =========================================
+   SECCIÓN DE PAGO Y VUELTO (Diseño Mejorado)
+========================================= */
+.seccion-vuelto {
+    margin-top: 15px;
+    border-top: 2px dashed #ddd;
+    padding-top: 15px;
+}
+
+.seccion-vuelto label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+    font-weight: bold;
+    color: var(--text-color);
+}
+
+/* Contenedor relativo para poder posicionar el símbolo $ */
+.input-currency-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+/* Símbolo de moneda flotante dentro del input */
+.currency-symbol {
+    position: absolute;
+    left: 15px;
+    font-size: 1.2rem;
+    color: #6c757d;
+    font-weight: bold;
+    pointer-events: none; /* Para que los clics pasen al input */
+}
+
+/* Estilos específicos para el input numérico gigante */
+.input-currency-wrapper input[type="number"] {
+    width: 100%;
+    padding: 12px 12px 12px 35px; /* Espacio extra a la izquierda para el $ */
+    font-size: 1.3rem; /* Letra más grande para los números */
+    font-weight: bold;
+    color: var(--primary-color);
+    border: 2px solid #ccc;
+    border-radius: var(--border-radius);
+    background-color: #f8f9fa;
+    transition: all 0.3s ease;
+    margin-bottom: 0; /* Resetea el margen de las reglas anteriores */
+}
+
+/* Efecto cuando el operador hace clic para escribir */
+.input-currency-wrapper input[type="number"]:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    background-color: white;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
+}
+
+/* Caja destacada para el resultado del vuelto */
+.vuelto-container {
+    background-color: #e9ecef;
+    padding: 12px;
+    border-radius: var(--border-radius);
+    text-align: center;
+    font-size: 1.1rem;
+    border: 1px solid #dee2e6;
+}
+
+.vuelto-importe {
+    color: var(--primary-color);
+    font-size: 1.3rem; 
+}
+
+@keyframes alerta-notificacion {
+    0% { transform: scale(1); background-color: #ffc107; }
+    50% { transform: scale(1.05); background-color: #ff9800; box-shadow: 0 0 10px rgba(255, 152, 0, 0.8); }
+    100% { transform: scale(1); background-color: #ffc107; }
+}
+
+.boton-alerta {
+    animation: alerta-notificacion 1.5s infinite;
+    color: black !important;
+    font-weight: bold;
+}
+
+/* =========================================
+   ANIMACIÓN DEL SPINNER DE CARGA
+========================================= */
+.spinner {
+    border: 6px solid #e9ecef;
+    border-top: 6px solid var(--primary-color);
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* =========================================
+   DASHBOARD TPV
+========================================= */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.dash-card {
+    background-color: var(--card-bg);
+    padding: 15px;
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border-left: 5px solid #ccc;
+    margin-bottom: 25px;
+}
+
+.dash-card h4 {
+    margin-bottom: 10px;
+    color: var(--text-color);
+    font-size: 1.1rem;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+}
+
+.dash-card p {
+    margin-bottom: 5px;
+    font-size: 1rem;
+}
+
+.dash-card small {
+    display: block;
+    margin-top: 10px;
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Colores indicadores para tarjetas */
+.dash-card.warning { border-left-color: #ffc107; }
+.dash-card.success { border-left-color: var(--success-color); }
+.dash-card.primary { border-left-color: var(--primary-color); }
+.dash-card.info { border-left-color: #17a2b8; }
+
+
+/* =========================================
+   FILTROS DE DASHBOARD (Visualidad Mejorada)
+========================================= */
+.dashboard-filtros-container {
+    background: var(--card-bg);
+    padding: 20px;
+    border-radius: var(--border-radius);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    margin-bottom: 25px;
+    border-left: 5px solid var(--primary-color);
+}
+
+.filtros-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.filtros-header h4 {
+    color: var(--text-color);
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+.badge-indicador {
+    font-size: 0.85rem;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-weight: bold;
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+}
+
+.filtros-controles {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    align-items: flex-end; /* Para que el botón se alinee abajo con los inputs */
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    flex: 1; /* Permite que los inputs crezcan igualitariamente */
+    min-width: 130px;
+}
+
+.input-group label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #6c757d;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.input-fecha {
+    padding: 12px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    font-size: 1rem;
+    color: var(--text-color);
+    background-color: #fff;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.input-fecha:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
+}
+
+/* Estilo para cuando el input está deshabilitado en modo offline */
+.input-fecha:disabled {
+    background-color: #e9ecef;
+    cursor: not-allowed;
+    color: #adb5bd;
+    border-color: #e9ecef;
+}
+
+.btn-group-filtros {
+    flex: 1;
+    min-width: 150px;
+    display: flex;
+}
+
+.btn-aplicar-filtro {
+    width: 100%;
+    padding: 12px 20px;
+    font-weight: bold;
+    font-size: 1rem;
+    background-color: var(--primary-color);
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.btn-aplicar-filtro:hover {
+    background-color: var(--primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.2);
+}
+
+/* =========================================
+   SECCIÓN CRÉDITO Y CLIENTES (Mejoras UX)
+========================================= */
+.seccion-credito {
+    margin-top: 15px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: var(--border-radius);
+}
+
+.label-destacado {
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-bottom: 8px;
+    display: block;
+    font-size: 0.95rem;
+}
+
+.input-cliente {
+    width: 100%;
+    padding: 12px;
+    font-size: 1rem;
+    border: 2px solid #ccc;
+    border-radius: var(--border-radius);
+    transition: all 0.3s ease;
+}
+
+.input-cliente:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
+    outline: none;
+}
+
+.estado-deuda-badge {
+    margin-top: 12px;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-weight: bold;
+    text-align: center;
+    border: 1px solid transparent;
+}
+
+/* Tarjeta para Cliente Nuevo */
+.nuevo-cliente-card {
+    margin-top: 15px;
+    padding: 15px;
+    background-color: #fff8e1; /* Amarillo muy suave */
+    border-left: 4px solid #ffc107;
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.nuevo-cliente-titulo {
+    margin-bottom: 15px;
+    color: #856404;
+    font-size: 1.05rem;
+    border-bottom: 1px solid #ffeeba;
+    padding-bottom: 8px;
+}
+
+.campos-grid {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.nuevo-cliente-card .input-group {
+    flex: 1;
+    min-width: 150px;
+    margin-bottom: 0;
+}
+
+.nuevo-cliente-card input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    background-color: white;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* =========================================
+   ESTILOS MEJORADOS PARA MODALES
+========================================= */
+.modal-overlay {
+    position: fixed; 
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.5); /* Fondo oscuro semitransparente */
+    backdrop-filter: blur(3px); /* Efecto cristal */
+    z-index: 2000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background-color: var(--card-bg);
+    width: 90%;
+    max-width: 450px;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    overflow: hidden;
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-header {
+    background-color: #f8f9fa;
+    padding: 15px 20px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.modal-header h3 {
+    color: var(--primary-color);
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.input-moderno {
+    width: 100%;
+    padding: 12px;
+    font-size: 1rem;
+    border: 2px solid #ccc;
+    border-radius: var(--border-radius);
+    background-color: white;
+    transition: border-color 0.3s ease;
+}
+
+.modal-body .input-group {
+    margin-bottom: 15px;
+}
+
+
+.modal-body .input-group:last-child {
+    margin-bottom: 0;
+}
+
+
+.input-moderno:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
+}
+
+.modal-actions {
+    padding: 15px 20px;
+    background-color: #f8f9fa;
+    border-top: 1px solid #e9ecef;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.btn-confirmar {
+    background-color: var(--success-color);
+    font-weight: bold;
+    flex: 1;
+}
+
+.btn-confirmar:hover {
+    background-color: #218838;
+}
+
+.btn-cancelar {
+    background-color: #6c757d;
+    flex: 1;
+}
+
+.btn-cancelar:hover {
+    background-color: #5a6268;
+}
+
+/* =========================================
+   SISTEMA DE NOTIFICACIONES (TOAST)
+========================================= */
+.toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none; /* Para no bloquear clics */
+}
+
+.toast {
+    min-width: 250px;
+    padding: 15px 20px;
+    border-radius: var(--border-radius);
+    color: white;
+    font-size: 0.95rem;
+    font-weight: bold;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    opacity: 0;
+    transform: translateX(100%);
+    animation: slideInToast 0.3s forwards, fadeOutToast 0.4s forwards 3.5s;
+}
+
+/* Colores según el tipo de notificación */
+.toast.info { background-color: var(--primary-color); }
+.toast.success { background-color: var(--success-color); }
+.toast.error { background-color: var(--danger-color); }
+.toast.warning { background-color: #ffc107; color: #333; }
+
+@keyframes slideInToast {
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeOutToast {
+    to { opacity: 0; transform: translateX(100%); }
+}
+
+/* =========================================
+   UX: PANEL DEL TOTAL
+========================================= */
+.total {
+    background-color: #f0f7fa; /* Fondo suave para destacar */
+    border: 2px solid var(--primary-color);
+    border-radius: var(--border-radius);
+    padding: 15px 20px;
+    margin: 15px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.total::before {
+    content: "TOTAL A PAGAR";
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #6c757d;
+}
+
+#total-importe {
+    font-size: 2.2rem; /* Tamaño gigante para lectura rápida */
+    font-weight: 900;
+    color: var(--primary-color);
+    letter-spacing: -1px;
+}
+
+/* =========================================
+   UX: BOTÓN COBRAR (CALL TO ACTION)
+========================================= */
+#btn-cobrar {
+    width: 100%; /* Ocupa todo el ancho */
+    padding: 18px;
+    font-size: 1.4rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    background-color: var(--success-color); /* Verde: indica éxito/avance */
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    margin-top: 25px;
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+    transition: all 0.3s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+
+#btn-cobrar:hover {
+    background-color: #218838;
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(40, 167, 69, 0.6);
+}
+
+#btn-cobrar:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 10px rgba(40, 167, 69, 0.4);
+}
+
+/* Estado deshabilitado (Cuando el carrito está vacío) */
+#btn-cobrar:disabled {
+    background-color: #ccc;
+    box-shadow: none;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* =========================================
+   MEJORAS DE UX PARA EL CATÁLOGO DE PRODUCTOS
+========================================= */
+
+.producto-item {
+    position: relative; /* Esencial para posicionar los badges internos */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 90px;
+    border: 1px solid #e2e8f0;
+    background-color: var(--card-bg);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Efecto feedback táctil responsivo */
+.producto-item:not(.agotado):active {
+    background-color: #f1f5f9;
+    transform: scale(0.96);
+    border-color: var(--primary-color);
+}
+
+/* Estado: Producto Agotado */
+.producto-item.agotado {
+    background-color: #f8fafc;
+    border-color: #cbd5e1;
+    opacity: 0.6;
+}
+
+/* Estado: Alerta de Bajo Stock (< 5 unidades) */
+.producto-item.bajo-stock {
+    border-color: #fef08a;
+    background-color: #fefce8;
+}
+
+/* Elementos tipográficos internos */
+.producto-precio {
+    font-weight: bold;
+    color: var(--text-color);
+}
+.producto-stock {
+    color: #64748b;
+    font-size: 0.85rem;
+}
+.producto-separador {
+    color: #cbd5e1;
+    margin: 0 2px;
+}
+
+/* --- BADGES FLOTANTES INTERNOS --- */
+
+/* Contador de unidades del producto ya añadidas al carrito */
+.badge-cantidad-carrito {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background-color: var(--primary-color);
+    color: white;
+    font-size: 0.8rem;
+    font-weight: bold;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 5px rgba(0, 123, 255, 0.4);
+    animation: popIn 0.2s ease-out;
+}
+
+/* Cintillo visual de Agotado */
+.badge-status-agotado {
+    position: absolute;
+    bottom: 6px;
+    background-color: #ef4444;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+/* Cintillo visual de Bajo Stock */
+.badge-status-bajo {
+    position: absolute;
+    bottom: 6px;
+    background-color: #f59e0b;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+@keyframes popIn {
+    0% { transform: scale(0); opacity: 0; }
+    80% { transform: scale(1.2); }
+    100% { transform: scale(1); opacity: 1; }
+}
