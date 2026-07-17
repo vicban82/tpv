@@ -4,464 +4,411 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TPV Móvil</title>
-    <link rel="manifest" href="manifest.json">
+    <title>Gestión de Almacén - TPV</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
-    <div id="loading-overlay"
-        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.85); z-index: 9999; flex-direction: column; justify-content: center; align-items: center; backdrop-filter: blur(2px);">
+    <div id="loading-overlay" style="display: none;">
         <div class="spinner"></div>
-        <p id="loading-text"
-            style="margin-top: 20px; font-weight: bold; font-size: 1.1rem; color: var(--primary-color);">Cargando...</p>
+        <p id="loading-text">Procesando...</p>
     </div>
-    <div id="network-status" class="status-bar online">Online</div>
 
     <div id="login-screen" class="screen active">
-        <h2>Acceso TPV</h2>
-        <input type="password" id="clave-input" placeholder="Ingrese su clave">
+        <h2>Acceso Almacén Central</h2>
+        <input type="password" id="clave-input" placeholder="Clave de Administrador">
         <button onclick="iniciarSesion()">Entrar</button>
     </div>
 
-    <div id="tpv-screen" class="screen">
+    <div id="almacen-screen" class="screen">
         <header>
-            <h3 id="instancia-nombre">TPV</h3>
-            <button onclick="cerrarSesion()">Cerrar Sesión</button>
+            <h3>Panel de Almacén Central</h3>
+            <div class="header-actions">
+                <button onclick="abrirDashboard()" class="btn-success btn-sm">📊 Ver Dashboard</button>
+                <button id="btn-notificaciones" onclick="abrirModalNotificaciones()" class="btn-secondary btn-sm"
+                    style="display:none;">
+                    🔔 Notificaciones <span id="badge-notificaciones" class="badge">0</span>
+                </button>
+                <button onclick="cerrarSesion()" class="btn-secondary btn-sm">🚪 Cerrar Sesión</button>
+            </div>
         </header>
 
-        <main>
-            <input type="text" id="buscar-producto" placeholder="Buscar producto..." onkeyup="filtrarCatalogo()">
-
-            <div class="acciones-inventario" style="margin: 15px 20px; display: flex; gap: 10px; flex-wrap: wrap;">
-                <button onclick="abrirModalTransferencia()" style="background-color: #17a2b8;">Hacer
-                    Transferencia</button>
-                <button onclick="verificarNotificaciones()" style="background-color: #ffc107; color: black;">
-                    Notificaciones <span id="badge-notificaciones"
-                        style="display:none; background: red; color: white; padding: 2px 6px; border-radius: 50%;">0</span>
-                </button>
-                <button onclick="abrirModalAbono()" style="background-color: #28a745;">Registrar Abono</button>
-                <button onclick="abrirDashboard()" style="background-color: #6f42c1;">Ver Dashboard</button>
-                <button onclick="abrirModalEgreso()" style="background-color: #dc3545;">Retiro / Gasto</button>
-            </div>
 
 
-            <div id="modal-transferencia" class="modal-overlay" style="display:none;">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3>📦 Nueva Transferencia</h3>
+
+        <main class="almacen-layout">
+            <section class="panel-izquierdo">
+                <div class="card">
+                    <h4>Transferir a TPV</h4>
+                    <div class="form-group">
+                        <label>Producto a transferir:</label>
+                        <select id="trans-producto"></select>
                     </div>
-
-                    <div class="modal-body">
-                        <div class="input-group">
-                            <label for="trans-producto" class="label-destacado">🛍️ Producto:</label>
-                            <select id="trans-producto" class="input-moderno"></select>
-                        </div>
-
-                        <div class="input-group">
-                            <label for="trans-cantidad" class="label-destacado">🔢 Cantidad:</label>
-                            <input type="number" id="trans-cantidad" class="input-moderno" min="1" placeholder="Ej. 10">
-                        </div>
-
-                        <div class="input-group">
-                            <label for="trans-destino" class="label-destacado">🏢 Destino:</label>
-                            <select id="trans-destino" class="input-moderno">
-                                <option value="Almacen">Almacén Central</option>
-                                <option value="TPV_1">TPV_1</option>
-                                <option value="TPV_2">TPV_2</option>
-                            </select>
-                        </div>
+                    <div class="form-group">
+                        <label>Cantidad:</label>
+                        <input type="number" id="trans-cantidad" min="1" placeholder="Ej. 10">
                     </div>
-
-                    <div class="modal-actions">
-                        <button onclick="ejecutarTransferencia()" class="btn-confirmar">Enviar Transferencia</button>
-                        <button onclick="cerrarModal('modal-transferencia')" class="btn-cancelar">Cancelar</button>
-                    </div>
-                </div>
-            </div>
-
-
-            <div id="modal-abono" class="modal-overlay" style="display:none;">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3>💰 Abonar a Crédito</h3>
-                    </div>
-
-                    <div class="modal-body">
-                        <div class="input-group">
-                            <label for="abono-cliente" class="label-destacado">👤 Cliente con Deuda:</label>
-                            <select id="abono-cliente" class="input-moderno"
-                                onchange="actualizarBadgeDeudaAbono()"></select>
-                        </div>
-
-                        <!-- Badge dinámico para mostrar la deuda del cliente seleccionado -->
-                        <div id="badge-deuda-abono" class="estado-deuda-badge"
-                            style="display: none; margin-bottom: 15px;"></div>
-
-                        <div class="input-group">
-                            <label for="abono-monto" class="label-destacado">💵 Monto a Abonar:</label>
-                            <div class="input-currency-wrapper">
-                                <span class="currency-symbol">$</span>
-                                <input type="number" id="abono-monto" min="1" step="0.01" placeholder="0.00">
-                            </div>
-                        </div>
-
-                        <div class="input-group">
-                            <label for="abono-metodo" class="label-destacado">💳 Método de Pago:</label>
-                            <select id="abono-metodo" class="input-moderno">
-                                <option value="efectivo">Efectivo</option>
-                                <option value="pago_movil">Pago Móvil</option>
-                                <option value="transferencia">Transferencia</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="modal-actions">
-                        <button onclick="ejecutarAbono()" class="btn-confirmar">Confirmar Abono</button>
-                        <button onclick="cerrarModal('modal-abono')" class="btn-cancelar">Cancelar</button>
-                    </div>
-                </div>
-            </div>
-
-
-
-            <div id="modal-notificaciones" class="screen"
-                style="display:none; position: fixed; top:10%; left:5%; width:90%; background:white; padding:20px; border-radius:8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 2000;">
-                <h3 style="color: var(--primary-color); margin-bottom: 15px;">Transferencias Pendientes</h3>
-                <ul id="lista-notificaciones" style="list-style: none; padding: 0; margin-bottom: 15px;"></ul>
-                <button onclick="cerrarModal('modal-notificaciones')" style="background-color: #6c757d;">Cerrar</button>
-            </div>
-            <div id="modal-dashboard" class="screen"
-                style="display:none; position: fixed; top:5%; left:5%; width:90%; height:90%; background:var(--bg-color); padding:20px; border-radius:8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 2500; overflow-y: auto;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="color: var(--primary-color);">Dashboard: <span id="dash-instancia"></span></h2>
-                    <button onclick="cerrarModal('modal-dashboard')"
-                        style="background-color: var(--danger-color);">Cerrar</button>
-                </div>
-
-                <div class="dashboard-filtros-container">
-                    <div class="filtros-header">
-                        <h4>Filtros de Fecha</h4>
-                        <span id="dash-modo-indicador" class="badge-indicador"></span>
-                    </div>
-
-                    <div class="dashboard-filtros-container">
-                        <div class="filtros-header">
-                            <h4>Filtros de Fecha</h4>
-                            <span id="dash-modo-indicador" class="badge-indicador"></span>
-                        </div>
-
-                        <div class="filtros-controles">
-                            <div class="input-group">
-                                <label for="dash-fecha-inicio">Desde:</label>
-                                <input type="date" id="dash-fecha-inicio" class="input-fecha">
-                            </div>
-
-                            <div class="input-group">
-                                <label for="dash-fecha-fin">Hasta:</label>
-                                <input type="date" id="dash-fecha-fin" class="input-fecha">
-                            </div>
-
-                            <div class="input-group">
-                                <label for="dash-producto">Producto:</label>
-                                <select id="dash-producto" class="input-fecha">
-                                    <option value="">Todos los productos</option>
-                                </select>
-                            </div>
-
-                            <div class="btn-group-filtros">
-                                <button onclick="cargarMetricasDashboard()" class="btn-aplicar-filtro">
-                                    Aplicar Filtro
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-
-
-                <div class="dashboard-grid">
-                    <div class="dash-card primary">
-                        <h4>Volumen de Ventas</h4>
-                        <p>Tickets generados: <strong id="dash-cant-ventas">0</strong></p>
-                        <p>Productos vendidos: <strong id="dash-cant-prods">0</strong></p>
-                        <p>Días con ventas: <strong id="dash-dias-venta">0</strong></p>
-                    </div>
-
-                    <div class="dashboard-grid">
-
-
-                        <div class="dash-card success">
-                            <h4>Finanzas</h4>
-                            <p>Ingresos Pagados (Caja): <strong id="dash-ingresos-pagados">$0.00</strong></p>
-                            <p>Ventas a Crédito: <strong id="dash-ventas-credito" style="color: #6c757d;">$0.00</strong>
-                            </p>
-                            <p>Inversión (Costo Total): <strong id="dash-inversion">$0.00</strong></p>
-                            <p style="color: var(--success-color); font-size: 1.1rem; margin-top: 5px;">Ganancia Neta
-                                Contable: <strong id="dash-ganancia">$0.00</strong></p>
-                        </div>
-
-                        <div class="dash-card info">
-                            <h4>Cuentas por Cobrar</h4>
-                            <p>Deuda Total Acumulada: <strong id="dash-deuda-total"
-                                    style="color: var(--danger-color);">$0.00</strong></p>
-                            <p>Abonos Recibidos (Filtro): <strong id="dash-abonos">$0.00</strong></p>
-                            <p style="color: var(--primary-color); font-size: 1.1rem; margin-top: 5px;">Flujo de Caja
-                                Real: <strong id="dash-flujo-caja">$0.00</strong></p>
-                            <small>*(Ingresos en Caja + Abonos)</small>
-                        </div>
-                        <div class="dash-card warning">
-                            <h4>Estado Local</h4>
-                            <p>Ventas por subir a la nube: <strong id="dash-ventas-cola">0</strong></p>
-                            <p>Productos bajo stock (<5): <strong id="dash-bajostock">0</strong></p>
-                            <p>Productos agotados: <strong id="dash-agotados">0</strong></p>
-                        </div>
-                    </div>
-
-
-                    <div class="dash-card info">
-                        <h4>Promedios de Rendimiento</h4>
-                        <p>Promedio Ventas/Día: <strong id="dash-prom-ventas">0.00</strong></p>
-                        <p>Promedio Ganancia/Día: <strong id="dash-prom-ganancia">$0.00</strong></p>
-                    </div>
-
-
-                </div> <!-- Fin del dashboard-grid actual -->
-
-                <!-- NUEVO: LISTADO NOMINAL DE DEUDORES -->
-                <div class="dash-card" style="margin-top: 20px; border-left: 4px solid var(--danger-color);">
-                    <h4 style="color: var(--danger-color); margin-bottom: 15px;">📋 Listado Nominal de Clientes con
-                        Deuda</h4>
-                    <div style="overflow-x: auto;">
-                        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
-                            <thead>
-                                <tr style="background-color: #f8f9fa; border-bottom: 2px solid #ddd;">
-                                    <th style="padding: 10px;">Nombre</th>
-                                    <th style="padding: 10px;">Teléfono</th>
-                                    <th style="padding: 10px;">Deuda</th>
-                                    <th style="padding: 10px;">Productos</th>
-                                    <th style="padding: 10px; text-align: center;">Días Pendientes</th>
-                                </tr>
-                            </thead>
-                            <tbody id="body-deudores">
-                                <!-- Se llenará dinámicamente con JS -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- NUEVO: DESGLOSE NOMINAL DE PRODUCTOS VENDIDOS -->
-                <div class="dash-card" style="margin-top: 20px; border-left: 4px solid #17a2b8;">
-                    <h4 style="color: #17a2b8; margin-bottom: 15px;">📦 Desglose Nominal de Productos Vendidos</h4>
-                    <div style="overflow-x: auto;">
-                        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
-                            <thead>
-                                <tr style="background-color: #f8f9fa; border-bottom: 2px solid #ddd;">
-                                    <th style="padding: 10px;">Producto</th>
-                                    <th style="padding: 10px; text-align: center;">Cantidad Vendida</th>
-                                    <th style="padding: 10px;">Total Generado ($)</th>
-                                </tr>
-                            </thead>
-                            <tbody id="body-productos-vendidos">
-                                <!-- Se llenará dinámicamente con JS -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-            </div> <!-- Fin del modal-dashboard -->
-
-            <div class="layout">
-                <section id="catalogo-container" class="productos">
-                </section>
-
-                <section class="carrito">
-                    <h4>Ticket Actual</h4>
-                    <ul id="lista-carrito"></ul>
-                    <div class="total">$<span id="total-importe">0.00</span></div>
-
-                    <div class="opciones-pago">
-                        <label for="metodo-pago">Pago:</label>
-                        <select id="metodo-pago" onchange="toggleReferencia()">
-                            <option value="efectivo">Efectivo</option>
-                            <option value="pago_movil">Pago Móvil</option>
-                            <option value="credito">Crédito (Cuenta por Cobrar)</option>
+                    <div class="form-group">
+                        <label>Destino:</label>
+                        <select id="trans-destino">
+                            <option value="TPV_1">TPV_1</option>
+                            <option value="TPV_2">TPV_2</option>
                         </select>
-                        <input type="text" id="ref-pago-movil" placeholder="Nro. Referencia SMS" style="display: none;">
+                    </div>
+                    <button onclick="ejecutarTransferencia()" class="btn-warning">Enviar a TPV</button>
+                </div>
 
-                        <div id="seccion-credito" class="seccion-credito" style="display: none;">
-                            <div class="input-group">
-                                <label for="cliente-credito" class="label-destacado">👤 Cliente (Buscar o
-                                    Crear):</label>
-                                <input list="lista-clientes" id="cliente-credito" class="input-cliente"
-                                    placeholder="Escriba el nombre del cliente..." onkeyup="verificarClienteNuevo()"
-                                    onchange="verificarClienteNuevo()">
-                                <datalist id="lista-clientes"></datalist>
-                            </div>
+                <div class="card mt-20" style="border-top: 4px solid var(--success-color);">
+                    <h4 style="color: var(--success-color);">📥 Registrar Entrada de Mercancía (Proveedor)</h4>
+                    <p class="subtitle">Aumentar stock por compra o reabastecimiento directo del proveedor</p>
 
-                            <!-- El badge donde mostraremos si hay deuda o si es nuevo -->
-                            <div id="estado-deuda" class="estado-deuda-badge" style="display: none;"></div>
-
-                            <!-- Tarjeta flotante para el registro de cliente nuevo -->
-                            <div id="nuevo-cliente-campos" class="nuevo-cliente-card" style="display: none;">
-                                <h5 class="nuevo-cliente-titulo">✨ Registro de Nuevo Cliente</h5>
-
-                                <div class="campos-grid">
-                                    <div class="input-group">
-                                        <label for="nuevo-telefono">📞 Teléfono:</label>
-                                        <input type="tel" id="nuevo-telefono" placeholder="Ej. 555-1234">
-                                    </div>
-
-                                    <div class="input-group">
-                                        <label for="nuevo-limite">💳 Límite de Crédito ($):</label>
-                                        <input type="number" id="nuevo-limite" placeholder="0.00" min="0" step="0.01">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="form-group">
+                        <label>Producto recibido:</label>
+                        <select id="prov-producto"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Cantidad recibida:</label>
+                        <input type="number" id="prov-cantidad" min="1" placeholder="Ej. 50">
+                    </div>
+                    <div class="form-group">
+                        <label>Proveedor / Nro. Factura / Nota:</label>
+                        <input type="text" id="prov-motivo" placeholder="Ej. Distribuidor Central - Factura #991">
+                    </div>
+                    <button onclick="ejecutarEntradaProveedor()" class="btn-success"
+                        style="margin-top: 5px; width: 100%;">Registrar Entrada de Proveedor</button>
+                </div>
 
 
-                        <div id="seccion-vuelto" class="seccion-vuelto">
-                            <label for="monto-pagado">Pagó con:</label>
-                            <div class="input-currency-wrapper">
-                                <span class="currency-symbol">$</span>
-                                <input type="number" id="monto-pagado" placeholder="0.00" onkeyup="calcularVuelto()"
-                                    onchange="calcularVuelto()">
-                            </div>
-                            <div class="vuelto-container">
-                                <strong>Vuelto: <span id="vuelto-importe" class="vuelto-importe">$0.00</span></strong>
-                            </div>
-                        </div>
+                <div class="card mt-20" style="border-top: 4px solid var(--danger-color);">
+                    <h4 style="color: var(--danger-color);">📉 Registrar Salida / Merma</h4>
+                    <p class="subtitle">Descontar stock por daño, caducidad o ajuste</p>
+
+                    <div class="form-group">
+                        <label>Producto afectado:</label>
+                        <select id="merma-producto"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Cantidad a dar de baja:</label>
+                        <input type="number" id="merma-cantidad" min="1" placeholder="Ej. 2">
+                    </div>
+                    <div class="form-group">
+                        <label>Motivo o justificación:</label>
+                        <input type="text" id="merma-motivo" placeholder="Ej. Producto caducado / Dañado">
+                    </div>
+                    <button onclick="ejecutarMerma()" class="btn-warning"
+                        style="background-color: var(--danger-color); color: white;">Registrar Baja Definitiva</button>
+                </div>
+
+
+                <div class="card mt-20">
+                    <h4>Inventario Actual (Almacén)</h4>
+                    <input type="text" id="buscar-producto" placeholder="Buscar..." onkeyup="filtrarCatalogo()">
+                    <div id="catalogo-container" class="inventario-lista">
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel-derecho">
+                <div class="card card-primary">
+                    <h4>Crear Nuevo Producto</h4>
+                    <p class="subtitle">Registrar en la base de datos maestra</p>
+
+                    <div class="form-group">
+                        <label>ID del Producto:</label>
+                        <input type="text" id="prod-id" placeholder="Ej. P001">
+                    </div>
+                    <div class="form-group">
+                        <label>Nombre:</label>
+                        <input type="text" id="prod-nombre" placeholder="Ej. Coca Cola 600ml">
+                    </div>
+                    <div class="form-group">
+                        <label>División/Categoría:</label>
+                        <input type="text" id="prod-division" placeholder="Ej. Bebidas">
+                    </div>
+                    <div class="form-group">
+                        <label>Costo (Inversión):</label>
+                        <input type="number" id="prod-inversion" placeholder="0.00" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Precio de Venta:</label>
+                        <input type="number" id="prod-precio" placeholder="0.00" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Stock Inicial (En Almacén):</label>
+                        <input type="number" id="prod-stock" placeholder="0" min="0">
+                    </div>
+                    <!-- NUEVO CAMPO: Stock Mínimo -->
+                    <div class="form-group">
+                        <label>Stock Mínimo (Alerta):</label>
+                        <input type="number" id="prod-stock-minimo" placeholder="Ej. 5" min="0">
                     </div>
 
 
-                    <button onclick="procesarVenta()" id="btn-cobrar" disabled>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="2" y="5" width="20" height="14" rx="2" ry="2"></rect>
-                            <line x1="2" y1="10" x2="22" y2="10"></line>
-                        </svg>
-                        Cobrar Ticket
-                    </button>
+                    <button onclick="crearProducto()" class="btn-success">Guardar Producto</button>
+                </div>
+            </section>
+        </main>
+    </div>
 
-                </section>
+    <div id="modal-edicion" class="modal" style="display: none;">
+        <div class="modal-content card">
+            <span class="close" onclick="cerrarModalEdicion()">&times;</span>
+            <h4>Editar Precios</h4>
+            <p id="edit-prod-nombre" class="subtitle" style="font-weight: bold; color: #333;"></p>
+            <input type="hidden" id="edit-prod-id">
+
+            <div class="form-group">
+                <label>Nuevo Costo (Inversión):</label>
+                <input type="number" id="edit-prod-inversion" step="0.01">
+            </div>
+            <div class="form-group">
+                <label>Nuevo Precio de Venta:</label>
+                <input type="number" id="edit-prod-precio" step="0.01">
+            </div>
+            <!-- NUEVO CAMPO: Edición de Stock Mínimo -->
+            <div class="form-group">
+                <label>Nuevo Stock Mínimo (Alerta):</label>
+                <input type="number" id="edit-prod-stock-minimo" min="0">
             </div>
 
 
-            <!-- MODAL: CIERRE DE CAJA (ARQUEO) -->
-            <div id="modal-cierre" class="modal-overlay" style="display:none; z-index: 3000;">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3>🔒 Declaración de Cierre (Caja Ciega)</h3>
+            <button onclick="guardarEdicionProducto()" class="btn-success">Guardar Cambios</button>
+        </div>
+    </div>
+
+    <div id="modal-notificaciones" class="modal" style="display: none;">
+        <div class="modal-content card" style="max-width: 600px;">
+            <span class="close" onclick="cerrarModalNotificaciones()">&times;</span>
+            <h4>Transferencias Pendientes</h4>
+            <div id="lista-notificaciones" class="inventario-lista">
+            </div>
+        </div>
+    </div>
+
+    <div id="dashboard-screen" class="screen">
+        <header>
+            <h3>📊 Dashboard Global y Eficiencia</h3>
+            <button onclick="cerrarDashboard()" class="btn-secondary">Volver al Almacén</button>
+        </header>
+
+        <main style="padding: 20px;">
+            <!-- NUEVO: Filtros de Fecha -->
+            <!-- REEMPLAZAR ESTA SECCIÓN EN TU HTML -->
+            <div class="card mb-20 filter-card">
+                <div class="filter-header">
+                    <label style="font-weight: bold;">Filtro por Fecha</label>
+                    <div class="filter-shortcuts">
+                        <button onclick="setRangoFecha('hoy')" class="btn-shortcut">Hoy</button>
+                        <button onclick="setRangoFecha('semana')" class="btn-shortcut">Últimos 7 días</button>
+                        <button onclick="setRangoFecha('mes')" class="btn-shortcut">Este Mes</button>
                     </div>
-                    <div class="modal-body">
-                        <p>Cuente los billetes y declare el efectivo total en gaveta.</p>
-                        <div class="input-group" style="margin-top: 15px;">
-                            <label for="efectivo-declarado" class="label-destacado">💵 Efectivo Físico Contado:</label>
-                            <div class="input-currency-wrapper">
-                                <span class="currency-symbol">$</span>
-                                <input type="number" id="efectivo-declarado" min="0" step="0.01" placeholder="0.00">
-                            </div>
-                        </div>
+                </div>
+                
+                <!-- Contenedor corregido sin anidaciones duplicadas -->
+                <div class="filter-inputs">
+                    <div class="input-group">
+                        <label for="dash-fecha-inicio">Desde:</label>
+                        <input type="date" id="dash-fecha-inicio" onchange="validarFechas(); cargarDatosDashboard();">
                     </div>
-                    <div class="modal-actions">
-                        <button onclick="ejecutarCierreCaja()" class="btn-confirmar">Confirmar y Cerrar</button>
-                        <button onclick="cerrarModal('modal-cierre')" class="btn-cancelar">Cancelar</button>
+                    <div class="input-group">
+                        <label for="dash-fecha-fin">Hasta:</label>
+                        <input type="date" id="dash-fecha-fin" onchange="validarFechas(); cargarDatosDashboard();">
+                    </div>
+            
+                    <div class="input-group">
+                        <label for="dash-tpv">TPV:</label>
+                        <select id="dash-tpv" onchange="cargarDatosDashboard()" style="padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
+                            <option value="">Todos los TPV</option>
+                            <option value="TPV_1">TPV_1</option>
+                            <option value="TPV_2">TPV_2</option>
+                            <option value="Almacen">Almacén</option>
+                        </select>
+                    </div>
+            
+                    <div class="input-group">
+                        <label for="dash-producto">Producto:</label>
+                        <select id="dash-producto" onchange="cargarDatosDashboard()" style="padding: 8px; border-radius: 4px; border: 1px solid #ccc; max-width: 150px;">
+                            <option value="">Todos los Productos</option>
+                            <!-- Llenado dinámicamente vía JS -->
+                        </select>
+                    </div>
+            
+                    <!-- Grupo de botones corregido y alineado -->
+                    <div style="display: flex; gap: 10px; align-items: flex-end;">
+                        <button onclick="cargarDatosDashboard()" class="btn-primary btn-sm btn-filtrar">Aplicar / Refrescar</button>
+                        <button onclick="imprimirIPV()" class="btn-secondary btn-sm btn-filtrar" style="background-color: #17a2b8;">🖨️ Imprimir IPV</button>
+                    </div>
+                </div>
+            </div>
+            
+
+
+            <!-- Tarjetas Globales -->
+            <div class="kpi-container">
+                <div class="kpi-card">
+                    <h5>Ventas Globales</h5>
+                    <h2 id="kpi-ventas">$0.00</h2>
+                </div>
+                <div class="kpi-card card-primary">
+                    <h5>Ganancia Global</h5>
+                    <h2 id="kpi-ganancia" style="color: #28a745;">$0.00</h2>
+                </div>
+                <div class="kpi-card">
+                    <h5>Stock Global en Sistema</h5>
+                    <h2 id="kpi-stock">0 Unds</h2>
+                </div>
+                <!-- NUEVAS TARJETAS DE CRÉDITO -->
+                <div class="kpi-card">
+                    <h5>Ventas a Crédito (Filtro)</h5>
+                    <h2 id="kpi-credito" style="color: #ffc107;">$0.00</h2>
+                </div>
+                <div class="kpi-card">
+                    <h5>Cuentas por Cobrar (Total)</h5>
+                    <h2 id="kpi-deuda" style="color: #dc3545;">$0.00</h2>
+                </div>
+            </div>
+
+
+            <!-- Tabla de Rendimiento por TPV -->
+            <div class="card mt-20">
+                <h4>Rendimiento y Eficiencia por Instancia / Vendedor</h4>
+                <div class="table-responsive">
+                    <table id="tabla-eficiencia">
+                        <thead>
+                            <tr>
+                                <th>Instancia</th>
+                                <th>Stock Actual</th>
+                                <th>Horas Trabajadas</th>
+                                <th>Total Ventas</th>
+                                <th>Ganancia Neta</th>
+                                <th>Eficiencia (Ganancia / Hr)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-eficiencia">
+                            <!-- Llenado por JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="almacen-layout mt-20" style="padding: 0;">
+                <div class="card panel-izquierdo">
+                    <h4 style="color: var(--success-color);">🔥 Top 3: Más Vendidos</h4>
+                    <div class="table-responsive">
+                        <table id="tabla-top3" style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr>
+                                    <th style="text-align: left; padding: 8px; border-bottom: 2px solid #ddd;">Producto
+                                    </th>
+                                    <th style="text-align: center; padding: 8px; border-bottom: 2px solid #ddd;">Cant.
+                                    </th>
+                                    <th style="text-align: right; padding: 8px; border-bottom: 2px solid #ddd;">Importe
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-top3">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card panel-derecho">
+                    <h4 style="color: var(--danger-color);">🧊 Top 3: Menos Vendidos</h4>
+                    <div class="table-responsive">
+                        <table id="tabla-bottom3" style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr>
+                                    <th style="text-align: left; padding: 8px; border-bottom: 2px solid #ddd;">Producto
+                                    </th>
+                                    <th style="text-align: center; padding: 8px; border-bottom: 2px solid #ddd;">Cant.
+                                    </th>
+                                    <th style="text-align: right; padding: 8px; border-bottom: 2px solid #ddd;">Importe
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-bottom3">
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
 
-            <!-- MODAL: RETIROS Y EGRESOS -->
-            <div id="modal-egreso" class="modal-overlay" style="display:none;">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3>💸 Retiro de Efectivo / Egreso</h3>
-                    </div>
-                    <div class="modal-body">
-                        <div class="input-group">
-                            <label for="egreso-tipo" class="label-destacado">📂 Tipo de Movimiento:</label>
-                            <select id="egreso-tipo" class="input-moderno">
-                                <option value="retiro_parcial">Retiro Parcial (Corte X)</option>
-                                <option value="gasto_operativo">Gasto Operativo (Caja Chica)</option>
-                                <option value="pago_proveedor">Pago a Proveedor</option>
-                            </select>
-                        </div>
-                        <div class="input-group">
-                            <label for="egreso-monto" class="label-destacado">💵 Monto a Retirar:</label>
-                            <div class="input-currency-wrapper">
-                                <span class="currency-symbol">$</span>
-                                <input type="number" id="egreso-monto" min="0.01" step="0.01" placeholder="0.00">
-                            </div>
-                        </div>
-                        <div class="input-group">
-                            <label for="egreso-concepto" class="label-destacado">📝 Concepto / Detalle:</label>
-                            <input type="text" id="egreso-concepto" class="input-moderno"
-                                placeholder="Ej. Retiro supervisor, compra de hielo...">
-                        </div>
-                    </div>
-                    <div class="modal-actions">
-                        <button onclick="ejecutarEgreso()" class="btn-confirmar">Registrar Salida</button>
-                        <button onclick="cerrarModal('modal-egreso')" class="btn-cancelar">Cancelar</button>
-                    </div>
+
+            <!-- NUEVO: Tabla de Desglose por Producto -->
+            <div class="card mt-20">
+                <h4>Desglose por Producto Vendido</h4>
+                <div class="table-responsive">
+                    <table id="tabla-productos">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Stock Actual</th>
+                                <th>Cantidad Vendida</th>
+                                <th>Total Ventas</th>
+                                <th>Ganancia Neta</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-productos">
+                            <!-- Llenado por JS -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </main>
     </div>
 
-                <!-- MODAL: APERTURA DE CAJA -->
-                <div id="modal-apertura" class="modal-overlay" style="display:none; z-index: 3000;">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h3>💵 Apertura de Turno</h3>
-                        </div>
-                        <div class="modal-body">
-                            <p>Declare el efectivo base con el que inicia su turno.</p>
-                            <div class="input-group" style="margin-top: 15px;">
-                                <label for="fondo-inicial" class="label-destacado">💰 Fondo Inicial (Caja):</label>
-                                <div class="input-currency-wrapper">
-                                    <span class="currency-symbol">$</span>
-                                    <input type="number" id="fondo-inicial" min="0" step="0.01" placeholder="0.00"
-                                        value="0">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="modal-actions">
-                            <button onclick="confirmarApertura()" class="btn-confirmar">Confirmar y Entrar</button>
-                            <button
-                                onclick="cerrarModal('modal-apertura'); document.getElementById('loading-overlay').style.display='none';"
-                                class="btn-cancelar">Cancelar</button>
-                        </div>
-                    </div>
-                </div>
+    <div id="offline-badge"
+        style="display: none; background: var(--danger-color); color: white; text-align: center; padding: 5px; font-weight: bold;">
+        ⚠️ Estás trabajando sin conexión. Los cambios se guardarán localmente.
+    </div>
 
-    <!-- Contenedor para Notificaciones Toast (Reemplaza a los alert) -->
-    <div id="toast-container" class="toast-container"></div>
+    <!-- ========================================================================== -->
+    <!-- NUEVO: MODAL DE CONFIRMACIÓN PERSONALIZADO                                 -->
+    <!-- ========================================================================== -->
+    <div id="modal-confirmacion" class="modal" style="display: none;">
+        <div class="modal-content card" style="max-width: 400px; border-top: 4px solid var(--warning-color);">
+            <span class="close" onclick="cerrarModalConfirmacion(false)">&times;</span>
+            <h4 id="confirm-titulo">Confirmar Acción</h4>
+            <p id="confirm-mensaje" class="subtitle"
+                style="margin-top: 15px; margin-bottom: 20px; font-size: 0.95rem; color: #444; line-height: 1.4;"></p>
 
-    <!-- Modal para Confirmaciones Personalizadas (Reemplaza a los confirm) -->
-    <div id="custom-confirm" class="modal-overlay" style="display:none; z-index: 9999;">
-        <div class="modal-content" style="max-width: 350px; text-align: center;">
-            <div class="modal-body">
-                <p id="confirm-message"
-                    style="font-size: 1.1rem; margin-bottom: 20px; font-weight: bold; color: var(--text-color);"></p>
-            </div>
-            <div class="modal-actions" style="justify-content: center;">
-                <button id="btn-confirm-yes" class="btn-confirmar">Sí, continuar</button>
-                <button id="btn-confirm-no" class="btn-cancelar">Cancelar</button>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button id="btn-confirmar-no" onclick="cerrarModalConfirmacion(false)" class="btn-secondary"
+                    style="margin-top: 0; width: auto; padding: 10px 20px;">Cancelar</button>
+                <button id="btn-confirmar-si" class="btn-warning"
+                    style="margin-top: 0; width: auto; padding: 10px 20px; background-color: var(--success-color); color: white;">Confirmar</button>
             </div>
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <!-- ========================================================================== -->
+    <!-- NUEVO: MODAL DE ALERTA PERSONALIZADO                                       -->
+    <!-- ========================================================================== -->
+    <div id="modal-alerta" class="modal" style="display: none;">
+        <div class="modal-content card" style="max-width: 400px; border-top: 4px solid var(--primary-color);">
+            <span class="close" onclick="cerrarModalAlerta()">&times;</span>
+            <h4 id="alerta-titulo-ui">Aviso del Sistema</h4>
+            <p id="alerta-mensaje-ui" class="subtitle"
+                style="margin-top: 15px; margin-bottom: 20px; font-size: 0.95rem; color: #444; line-height: 1.4;"></p>
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button onclick="cerrarModalAlerta()" class="btn-primary"
+                    style="margin-top: 0; width: auto; padding: 10px 20px;">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+
     <script>
-        // Registrar el Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then(reg => console.log('Service Worker registrado', reg))
-                    .catch(err => console.error('Error al registrar SW', err));
+                navigator.serviceWorker.register('./sw.js').then(reg => {
+                    console.log('Service Worker registrado', reg);
+                }).catch(err => console.warn('Error al registrar SW', err));
             });
         }
     </script>
+    <script src="app.js"></script>
 </body>
 
 </html>
