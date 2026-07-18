@@ -1,5 +1,5 @@
 // Nombre de la caché (Cambia el "v1" a "v2", "v3" etc., cuando actualices tu código para forzar la recarga)
-const CACHE_NAME = 'tpv-cache-v113';
+const CACHE_NAME = 'tpv-cache-v115';
 
 // Archivos críticos que deben guardarse para que la app funcione sin internet
 const urlsToCache = [
@@ -8,9 +8,13 @@ const urlsToCache = [
   './styles.css',   
   './app.js',
   './manifest.json',
+  './FavIcon.png',
+  './logo.png',
   // Si agregas los iconos, descomenta las siguientes líneas:
   // './icon-192x192.png',
   // './icon-512x512.png'
+
+
 ];
 
 // ==========================================
