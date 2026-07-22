@@ -1,6 +1,6 @@
 // URL de tu implementación de Google Apps Script
 const API_URL =
-  "https://script.google.com/macros/s/AKfycbwpQwEIevc0ges38973fHNM3rGIy5z6GzSvZRneMR0ZpOjVcGtNHFnYavvgRiLXmYPlKg/exec";
+  "https://script.google.com/macros/s/AKfycbwGEpRyHBEVdx78f7QbOLyZwsfBXitG32UaGNrq-AEhNYRbetdl_4slB67AJTFssVriig/exec";
 
 let catalogoLocal = [];
 let carrito = [];
@@ -13,6 +13,31 @@ let instanciaPendienteLogin = null;
 // NUEVO: Diccionario para recordar qué clave pertenece a qué instancia en modo Offline
 let credencialesOffline =
   JSON.parse(localStorage.getItem("credencialesOffline")) || {};
+
+// ==========================================
+// CONTROL DE PESTAÑAS DUPLICADAS
+// ==========================================
+const canalTPV = new BroadcastChannel('canal_tpv_sesiones');
+
+// Escuchar si otra pestaña pregunta o afirma estar usando el TPV
+canalTPV.onmessage = (evento) => {
+    // Si otra pestaña acaba de abrirse y pregunta quién está activo
+    if (evento.data.tipo === 'VERIFICAR_ACTIVO' && instanciaActual) {
+        canalTPV.postMessage({ tipo: 'SESION_ACTIVA', instancia: instanciaActual });
+    }
+
+    // Si nosotros acabamos de preguntar, y alguien responde que ya está activo
+    if (evento.data.tipo === 'SESION_ACTIVA' && instanciaActual === evento.data.instancia) {
+        document.body.innerHTML = `
+            <div style="display:flex; height:100vh; width:100%; justify-content:center; align-items:center; background:var(--bg-color); flex-direction:column; text-align:center; padding: 20px;">
+                <h2 style="color:var(--danger-color); margin-bottom:15px;">⚠️ Acceso Bloqueado</h2>
+                <p style="font-size:1.1rem;">El terminal <b>${instanciaActual}</b> ya está abierto en otra pestaña o ventana.</p>
+                <p style="color:#666; margin-top:10px;">Cierre esta pestaña y continúe trabajando en la ventana original para evitar conflictos en el sistema.</p>
+            </div>`;
+    }
+};
+
+
 
 function mostrarLoading(mensaje = "Procesando...") {
   document.getElementById("loading-text").innerText = mensaje;
@@ -60,6 +85,11 @@ async function iniciarSesion() {
 
   mostrarLoading("Iniciando sesión...");
 
+  // NUEVO: Generar token de sesión único por navegador
+    const tokenSesion = "SES-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem("tokenSesion", tokenSesion);
+  
+
   if (navigator.onLine) {
     try {
       const payload = { action: "iniciar_sesion", payload: { clave: clave } };
@@ -101,6 +131,7 @@ function encolarSesion(tipo, instancia) {
     tipo: tipo,
     instancia: instancia,
     fecha: new Date().toISOString(), // Formato ideal para el backend
+    token: localStorage.getItem("tokenSesion") // <-- NUEVO: Adjuntar el token
   });
   localStorage.setItem(
     "sesionesPendientes",
@@ -227,6 +258,7 @@ async function procesarAcceso(instancia) {
   console.log("[DEBUG LOGIN] 13. Ocultando login-screen y mostrando tpv-screen...");
   document.getElementById("login-screen").classList.remove("active");
   document.getElementById("tpv-screen").classList.add("active");
+  cargarNombreTPV();
   document.getElementById("instancia-nombre").innerText = instanciaActual;
 
   // 3. Cargar datos
@@ -244,6 +276,7 @@ async function procesarAcceso(instancia) {
 // CERRAR SESIÓN (OFFLINE-FRIENDLY)
 // ==========================================
 function cerrarSesion() {
+    limpiarContadorBilletes(); // Forzamos limpiar el contador y el total
     document.getElementById('efectivo-declarado').value = '';
     document.getElementById('modal-cierre').style.display = 'flex';
 }
@@ -266,12 +299,7 @@ async function ejecutarCierreCaja() {
   const teorico = (turnoActual.fondoInicial + turnoActual.ventasEfectivo + turnoActual.abonosEfectivo) - turnoActual.retiros;
   const diferencia = declarado - teorico;
 
-  // 🔴 NUEVA VALIDACIÓN: IMPEDIR CIERRE SI HAY DESCUADRE
-  if (diferencia !== 0) {
-      const tipoDescuadre = diferencia > 0 ? "sobrante" : "faltante";
-      return mostrarToast(`No se puede cerrar. Hay un ${tipoDescuadre} de $${Math.abs(diferencia).toFixed(2)}.`, "error");
-  }
-
+  // 1. Armamos el objeto de reporte ANTES de validar la diferencia
   const reporteCierre = {
       tpv: instanciaActual,
       fechaApertura: turnoActual.fechaApertura,
@@ -280,19 +308,46 @@ async function ejecutarCierreCaja() {
       teorico: teorico,
       declarado: declarado,
       diferencia: diferencia,
-      retirosTotales: turnoActual.retiros
+      retirosTotales: turnoActual.retiros,
+      estado: diferencia === 0 ? "cuadrado" : "descuadre" // <-- NUEVA PROPIEDAD
   };
 
-  mostrarLoading('Auditando y sincronizando cierre en la nube...');
+  // 2. NUEVA VALIDACIÓN: SI HAY DESCUADRE, REGISTRA EL INTENTO Y BLOQUEA
+  if (diferencia !== 0) {
+      const tipoDescuadre = diferencia > 0 ? "sobrante" : "faltante";
+      
+      mostrarLoading('Registrando intento fallido por descuadre...');
+      try {
+          // Enviamos el reporte a la hoja de cálculo
+          const payloadIntento = {
+              action: 'registrar_cierre_caja',
+              payload: { cierres: [reporteCierre] }
+          };
+          console.log("Descuadre");
+          await fetch(API_URL, {
+              method: "POST",
+              body: JSON.stringify(payloadIntento),
+          });
+      } catch (error) {
+          console.warn("No se pudo registrar el intento en la nube", error);
+      } finally {
+          ocultarLoading();
+      }
+
+      return mostrarToast(`No se puede cerrar. Hay un ${tipoDescuadre} de $${Math.abs(diferencia).toFixed(2)}. El incidente fue registrado.`, "error");
+  }
+
+  // 3. FLUJO NORMAL (CUADRADO)
+  mostrarLoading('Auditando y sincronizando...');
 
   try {
-      // 1. Forzar la subida de todas las operaciones locales antes de procesar el cierre
+      // Forzar la subida de todas las operaciones locales antes de procesar el cierre
       await sincronizarClientesPendientes();
       await sincronizarVentasPendientes();
       await sincronizarAbonosPendientes();
       await sincronizarEgresos();
 
-      // 2. Enviar el cierre directamente a la API
+      // Enviar el cierre definitivamente a la API
       const payload = {
           action: 'registrar_cierre_caja',
           payload: { cierres: [reporteCierre] }
@@ -306,7 +361,7 @@ async function ejecutarCierreCaja() {
       if (data.success) {
           mostrarToast(`Cierre procesado sin descuadres.`, "success");
 
-          // 3. Limpieza estricta de la UI y Sesión
+          // Limpieza estricta de la UI y Sesión
           cerrarModal('modal-cierre');
           encolarSesion('salida', instanciaActual); 
           await sincronizarSesionesPendientes(); // Subir la salida de inmediato
@@ -319,6 +374,7 @@ async function ejecutarCierreCaja() {
           carrito = [];
           localStorage.removeItem('instancia');
           localStorage.removeItem('turnoActual');
+          localStorage.removeItem('tokenSesion');
 
           document.getElementById('tpv-screen').classList.remove('active');
           document.getElementById('login-screen').classList.add('active');
@@ -335,6 +391,7 @@ async function ejecutarCierreCaja() {
       ocultarLoading();
   }
 }
+
 
 
 
@@ -894,6 +951,7 @@ function procesarVenta() {
   let montoPagado = totalTicket;
   let vueltoTotal = 0;
   let clienteId = null;
+  let nombreCliente = "";
 
   if (metodoPago !== "credito") {
     const inputPagado = document.getElementById("monto-pagado").value;
@@ -906,9 +964,7 @@ function procesarVenta() {
     if (vueltoTotal < 0) return mostrarToast("Faltan fondos.", "error");
   } else {
     // LÓGICA DE CRÉDITO
-    const nombreCliente = document
-      .getElementById("cliente-credito")
-      .value.trim();
+    nombreCliente = document.getElementById("cliente-credito").value.trim();
     if (nombreCliente === "")
       return mostrarToast(
         "Debe seleccionar o crear un cliente para dar crédito.",
@@ -1015,6 +1071,14 @@ function procesarVenta() {
     localStorage.setItem('turnoActual', JSON.stringify(turnoActual));
   }
 
+    // --- NUEVO: Leer el estado del CheckBox ---
+    const imprimirTicket = document.getElementById("chk-generar-ticket").checked;
+
+    if (imprimirTicket) {
+        // Clonamos el carrito [...carrito] antes de que se limpie en la línea de abajo
+        generarTicketVenta(idVenta, [...carrito], totalTicket, montoPagado, vueltoTotal, metodoPago, nombreCliente || "");
+    }
+  
   // Limpiar UI
   carrito = [];
   document.getElementById("metodo-pago").value = "efectivo";
@@ -1089,25 +1153,72 @@ async function sincronizarVentasPendientes() {
 }
 
 // Inicialización de la App
-window.onload = () => {
+window.onload = async () => {
   manejarEstadoRed();
   if (instanciaActual) {
-    document.getElementById("login-screen").classList.remove("active");
-    document.getElementById("tpv-screen").classList.add("active");
-    document.getElementById("instancia-nombre").innerText = instanciaActual;
+    const tokenLocal = localStorage.getItem("tokenSesion");
 
-    cargarCatalogo();
-    cargarClientes();
-    sincronizarClientesPendientes().then(() => sincronizarVentasPendientes());
-    sincronizarSesionesPendientes(); // <-- NUEVO llamado a sincronización
-    sincronizarAbonosPendientes();
-    sincronizarEgresos();
+    // Verificar en la nube si este navegador tiene el token válido
+    if (navigator.onLine) {
+      mostrarLoading("Verificando sesión...");
+      try {
+        const payload = { 
+            action: "verificar_sesion", 
+            payload: { instancia: instanciaActual, token: tokenLocal } 
+        };
+        const response = await fetch(API_URL, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
 
-    chequearNotificacionesSilencioso();
+        // Si la sesión es inválida o fue abierta en otro lado, bloquear el acceso
+        if (!data.success) {
+          mostrarToast(data.data.error || "Sesión cerrada o activa en otro navegador.", "error");
+          forzarCierreLocal();
+          ocultarLoading();
+          return; 
+        }
+      } catch (error) {
+        console.warn("Error de conexión al verificar sesión. Operando con caché local.");
+      }
+      ocultarLoading();
+    }
+
+    iniciarEntornoTPV();
   }
 
   setInterval(chequearNotificacionesSilencioso, 60000);
 };
+
+// Función auxiliar para cargar el entorno gráfico
+function iniciarEntornoTPV() {
+  canalTPV.postMessage({ tipo: 'VERIFICAR_ACTIVO', instancia: instanciaActual });
+  document.getElementById("login-screen").classList.remove("active");
+  document.getElementById("tpv-screen").classList.add("active");
+  cargarNombreTPV();
+  document.getElementById("instancia-nombre").innerText = instanciaActual;
+
+  cargarCatalogo();
+  cargarClientes();
+  sincronizarClientesPendientes().then(() => sincronizarVentasPendientes());
+  sincronizarSesionesPendientes(); 
+  sincronizarAbonosPendientes();
+  sincronizarEgresos();
+  chequearNotificacionesSilencioso();
+}
+
+// Función auxiliar para expulsar al usuario intruso
+function forzarCierreLocal() {
+  instanciaActual = null;
+  turnoActual = null;
+  localStorage.removeItem("instancia");
+  localStorage.removeItem("turnoActual");
+  localStorage.removeItem("tokenSesion");
+  document.getElementById("tpv-screen").classList.remove("active");
+  document.getElementById("login-screen").classList.add("active");
+}
+
 
 // ==========================================
 // MÓDULO DE DASHBOARD Y MÉTRICAS
@@ -1835,3 +1946,120 @@ async function sincronizarCierresPendientes() {
   }
 }
 
+async function cargarNombreTPV() {
+  if (!navigator.onLine) return; // Si está offline, usará el que ya está en localStorage
+  
+  try {
+    const payload = {
+      action: "obtener_nombre_tpv",
+      payload: { instancia: instanciaActual }
+    };
+    const response = await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    
+    if (data.success) {
+      // Guardar en local para uso offline y para el ticket
+      localStorage.setItem("nombreTPV", data.data.nombre);
+      // Opcional: Actualizar el título de la interfaz
+      document.getElementById("instancia-nombre").innerText = data.data.nombre;
+    }
+  } catch (error) {
+    console.warn("No se pudo obtener el nombre del TPV. Se usará el código por defecto.");
+  }
+}
+
+function generarTicketVenta(idVenta, carritoVenta, total, pagado, vuelto, metodoPago, clienteNombre = "") {
+  let nombreComercial = localStorage.getItem("nombreTPV") || instanciaActual;
+  let ventanaImpresion = window.open('', '_blank');
+  
+  if (!ventanaImpresion) {
+      mostrarToast("Comprobante no generado: Desactive el bloqueador de ventanas emergentes.", "warning");
+      return; 
+  }
+
+  let fecha = new Date().toLocaleString('es-ES');
+  
+  // Generar lista de artículos
+  let itemsHTML = carritoVenta.map(item => `
+      <div style="display:flex; justify-content:space-between; font-size: 12px; margin-bottom: 3px;">
+          <span>${item.cantidad}x ${item.nombre}</span>
+          <span>$${(item.precio * item.cantidad).toFixed(2)}</span>
+      </div>
+  `).join('');
+
+  // Formato HTML del ticket adaptado a 58mm/80mm
+  let html = `
+      <div style="font-family: monospace; width: 300px; padding: 5px; color: black; background: white;">
+          <h2 style="text-align: center; margin-bottom: 5px; font-size: 18px;">${nombreComercial}</h2>
+          <p style="text-align: center; margin: 0; font-size: 12px;">Ticket: ${idVenta}</p>
+          <p style="text-align: center; margin: 0; font-size: 12px;">Fecha: ${fecha}</p>
+          ${clienteNombre ? `<p style="text-align: center; margin: 0; font-size: 12px;">Cliente: ${clienteNombre}</p>` : ''}
+          
+          <hr style="border-top: 1px dashed black; margin: 10px 0;">
+          ${itemsHTML}
+          <hr style="border-top: 1px dashed black; margin: 10px 0;">
+          
+          <div style="display:flex; justify-content:space-between; font-weight:bold; font-size: 14px;">
+              <span>TOTAL:</span>
+              <span>$${total.toFixed(2)}</span>
+          </div>
+          
+          <div style="display:flex; justify-content:space-between; font-size: 12px; margin-top: 8px;">
+              <span>Método:</span>
+              <span>${metodoPago.toUpperCase()}</span>
+          </div>
+          
+          ${metodoPago !== 'credito' ? `
+          <div style="display:flex; justify-content:space-between; font-size: 12px;">
+              <span>Recibido:</span>
+              <span>$${pagado.toFixed(2)}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size: 12px;">
+              <span>Vuelto:</span>
+              <span>$${vuelto.toFixed(2)}</span>
+          </div>` : ''}
+          
+          <br>
+          <p style="text-align: center; font-size: 12px; margin-top: 10px;">¡Gracias por su compra!</p>
+      </div>
+      <script>
+          window.onload = function() { 
+            window.print(); 
+            setTimeout(() => window.close(), 500); 
+          };
+      </script>
+  `;
+  
+  ventanaImpresion.document.write(html);
+  ventanaImpresion.document.close();
+}
+
+// ==========================================
+// CONTADOR DE BILLETES (CIERRE DE CAJA)
+// ==========================================
+function calcularTotalBilletes() {
+  let total = 0;
+  // Captura todos los inputs que pertenecen al contador de billetes
+  const inputsBilletes = document.querySelectorAll('.calc-billete');
+  
+  inputsBilletes.forEach(input => {
+      const cantidad = parseInt(input.value) || 0;
+      const valorDenominacion = parseFloat(input.getAttribute('data-valor')) || 0;
+      
+      // Multiplica la cantidad de billetes por su denominación y suma al total
+      total += (cantidad * valorDenominacion);
+  });
+
+  // Actualiza dinámicamente el input de efectivo declarado
+  const inputDeclarado = document.getElementById('efectivo-declarado');
+  inputDeclarado.value = total > 0 ? total.toFixed(2) : '';
+}
+
+function limpiarContadorBilletes() {
+  const inputsBilletes = document.querySelectorAll('.calc-billete');
+  inputsBilletes.forEach(input => input.value = '');
+  document.getElementById('efectivo-declarado').value = '';
+}
