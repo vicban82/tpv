@@ -48,6 +48,7 @@ function ocultarLoading() {
   document.getElementById("loading-overlay").style.display = "none";
 }
 
+
 // ==========================================
 // DETECCIÓN DE RED Y SINCRONIZACIÓN AUTOMÁTICA
 // ==========================================
@@ -843,7 +844,7 @@ function mostrarNotificaciones(notificaciones) {
                     <strong>De: ${notif.origen}</strong><br>
                     Producto: ${notif.producto} (Cant: ${notif.cantidad})<br>
                     <small>Existencia final quedará en: ${notif.existenciaProyectada}</small><br>
-                    <input type="password" id="firma-${notif.idFila}" placeholder="Firma digital" style="margin-top:5px; padding:5px; width:100%; border:1px solid #ccc;">
+                    <input type="text" id="firma-${notif.idFila}" placeholder="Firma digital" autocomplete="off" style="-webkit-text-security: disc; margin-top:5px; padding:5px; width:100%; border:1px solid #ccc;">
                     <button onclick="aprobarTransferencia(${notif.idFila})" style="margin-top: 5px; background-color: var(--success-color); width: 100%;">Aprobar Recepción</button>
                 </li>
             `;
@@ -2057,6 +2058,64 @@ function calcularTotalBilletes() {
   const inputDeclarado = document.getElementById('efectivo-declarado');
   inputDeclarado.value = total > 0 ? total.toFixed(2) : '';
 }
+
+function limpiarContadorBilletes() {
+  const inputsBilletes = document.querySelectorAll('.calc-billete');
+  inputsBilletes.forEach(input => input.value = '');
+  document.getElementById('efectivo-declarado').value = '';
+}
+
+
+// ==========================================
+// INSTALACIÓN PWA (Añadir al final de app.js)
+// ==========================================
+let deferredPrompt;
+const btnInstalar = document.getElementById('btn-instalar');
+
+// Escuchar el evento que indica que la app es instalable
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevenir que el navegador muestre su propio prompt automáticamente
+    e.preventDefault();
+    // Guardar el evento para dispararlo cuando el usuario haga clic
+    deferredPrompt = e;
+    
+    // Mostrar el botón personalizado de instalación
+    if (btnInstalar) {
+        btnInstalar.style.display = 'block';
+    }
+});
+
+// Lógica al hacer clic en el botón
+if (btnInstalar) {
+    btnInstalar.addEventListener('click', async () => {
+        if (deferredPrompt) {
+            // Mostrar el prompt nativo de instalación
+            deferredPrompt.prompt();
+            
+            // Esperar la respuesta del usuario
+            const { outcome } = await deferredPrompt.userChoice;
+            
+            if (outcome === 'accepted') {
+                console.log('El usuario aceptó instalar la TPV');
+            } else {
+                console.log('El usuario rechazó la instalación');
+            }
+            
+            // Limpiar la variable y ocultar el botón
+            deferredPrompt = null;
+            btnInstalar.style.display = 'none';
+        }
+    });
+}
+
+// Escuchar cuando la app ya ha sido instalada exitosamente
+window.addEventListener('appinstalled', (e) => {
+    // Ocultar el botón de instalación permanentemente
+    if (btnInstalar) {
+        btnInstalar.style.display = 'none';
+    }
+    console.log('TPV instalada correctamente');
+});
 
 function limpiarContadorBilletes() {
   const inputsBilletes = document.querySelectorAll('.calc-billete');
