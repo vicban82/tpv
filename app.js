@@ -1,6 +1,6 @@
 // URL de tu implementación de Google Apps Script
 const API_URL =
-  "https://script.google.com/macros/s/AKfycbwdd8aVW1WM7wyzxT-JdXjzRp7Fk4qnwVY5xr_ryxQnHKqQGFjIM-4r-dHuMbKqutJB/exec";
+  "https://script.google.com/macros/s/AKfycbwGEpRyHBEVdx78f7QbOLyZwsfBXitG32UaGNrq-AEhNYRbetdl_4slB67AJTFssVriig/exec";
 
 let catalogoLocal = [];
 let carrito = [];
@@ -2116,9 +2116,3 @@ window.addEventListener('appinstalled', (e) => {
     }
     console.log('TPV instalada correctamente');
 });
-
-function limpiarContadorBilletes() {
-  const inputsBilletes = document.querySelectorAll('.calc-billete');
-  inputsBilletes.forEach(input => input.value = '');
-  document.getElementById('efectivo-declarado').value = '';
-}
