@@ -1,6 +1,6 @@
 // URL de tu implementación de Google Apps Script
 const API_URL =
-  "https://script.google.com/macros/s/AKfycbwpQwEIevc0ges38973fHNM3rGIy5z6GzSvZRneMR0ZpOjVcGtNHFnYavvgRiLXmYPlKg/exec";
+  "https://script.google.com/macros/s/AKfycbwdd8aVW1WM7wyzxT-JdXjzRp7Fk4qnwVY5xr_ryxQnHKqQGFjIM-4r-dHuMbKqutJB/exec";
 
 let catalogoLocal = [];
 let carrito = [];
