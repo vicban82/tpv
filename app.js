@@ -112,9 +112,17 @@ function ocultarLoading() {
 window.addEventListener("online", manejarEstadoRed);
 window.addEventListener("offline", manejarEstadoRed);
 
-function manejarEstadoRed() {
+async function manejarEstadoRed() {
   const statusDiv = document.getElementById("network-status");
-  if (navigator.onLine) {
+  
+  // Cambiamos a UI de validación para darle feedback al usuario
+  statusDiv.textContent = "Verificando conexión...";
+  statusDiv.className = "status-bar";
+
+  // Llamamos a nuestro nuevo validador
+  const hayInternetReal = await verificarConexionReal();
+
+  if (hayInternetReal) {
     statusDiv.textContent = "Online - Sincronizando...";
     statusDiv.className = "status-bar online";
 
@@ -126,10 +134,32 @@ function manejarEstadoRed() {
 
     setTimeout(() => (statusDiv.textContent = "Online"), 3000);
   } else {
-    statusDiv.textContent = "Offline - Trabajando en local";
+    // Si no hay internet real (aunque el Wi-Fi esté conectado)
+    statusDiv.textContent = "Offline - Trabajando en local (Sin salida a Internet)";
     statusDiv.className = "status-bar offline";
   }
 }
+
+
+async function verificarConexionReal() {
+  // 1. Si el navegador ya detecta que no hay red, descartamos rápidamente
+  if (!navigator.onLine) return false;
+  
+  try {
+    // 2. Hacemos un "ping" a un recurso ligero para ver si de verdad hay salida a internet
+    // Usamos 'no-cors' para evitar problemas de políticas de origen y 'no-store' para evitar la caché
+    await fetch("https://www.google.com/favicon.ico", { 
+        mode: 'no-cors', 
+        cache: 'no-store' 
+    });
+    return true;
+  } catch (error) {
+    // 3. Si falla (ej. conectado a un WiFi pero sin internet real), retornamos false
+    return false;
+  }
+}
+
+
 
 // ==========================================
 // AUTENTICACIÓN
@@ -340,10 +370,15 @@ function cerrarSesion() {
 }
 
 async function ejecutarCierreCaja() {
-  // RESTRICCIÓN DE SEGURIDAD: Prohibido cerrar turno sin conexión
-  if (!navigator.onLine) {
-      return mostrarToast("El cierre de caja requiere conexión a internet", "error");
+  mostrarLoading('Verificando conexión con el servidor...');
+  const conexionSegura = await verificarConexionReal();
+  ocultarLoading();
+
+  // RESTRICCIÓN DE SEGURIDAD: Prohibido cerrar turno sin conexión comprobada
+  if (!conexionSegura) {
+      return mostrarToast("El cierre de caja requiere una conexión a internet ESTABLE", "error");
   }
+
 
   const declarado = parseFloat(document.getElementById('efectivo-declarado').value);
   if (isNaN(declarado) || declarado < 0) return mostrarToast("Ingrese un monto válido", "error");
@@ -1284,6 +1319,20 @@ window.onload = async () => {
 
     iniciarEntornoTPV();
   }
+
+  setInterval(async () => {
+    // Solo hacemos el check silencioso si el navegador cree que estamos online.
+    if (navigator.onLine) {
+        const estadoAnterior = document.getElementById("network-status").classList.contains("online");
+        const hayInternet = await verificarConexionReal();
+        
+        // Si el estado real es diferente al que muestra la UI, actualizamos.
+        if (hayInternet !== estadoAnterior) {
+            manejarEstadoRed();
+        }
+    }
+}, 15000); // Revisa cada 15 segundos (ajústalo según la criticidad de tu TPV)
+
 
   setInterval(chequearNotificacionesSilencioso, 60000);
 };
