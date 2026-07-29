@@ -1,6 +1,6 @@
 // URL de tu implementación de Google Apps Script
 const API_URL =
-  "https://script.google.com/macros/s/AKfycbwdd8aVW1WM7wyzxT-JdXjzRp7Fk4qnwVY5xr_ryxQnHKqQGFjIM-4r-dHuMbKqutJB/exec";
+  "https://script.google.com/macros/s/AKfycbwGEpRyHBEVdx78f7QbOLyZwsfBXitG32UaGNrq-AEhNYRbetdl_4slB67AJTFssVriig/exec";
 
 let catalogoLocal = [];
 let carrito = [];
@@ -18,6 +18,61 @@ let credencialesOffline =
 // CONTROL DE PESTAÑAS DUPLICADAS
 // ==========================================
 const canalTPV = new BroadcastChannel('canal_tpv_sesiones');
+
+// Diccionario de imágenes/iconos por categoría
+//Carnes y Embutidos": "img/carnes.jpg".
+const imagenesCategoria = {
+  "Alimentos y Bebidas": "🥫",
+  "Panadería y Pastelería": "🥖",
+  "Carnes y Embutidos": "🥩",
+  "Pescados y Mariscos": "🐟",
+  "Frutas y Verduras": "🥦",
+  "Granos y Cereales": "🌾",
+  "Lácteos y Huevos": "🥚",
+  "Bebidas Alcohólicas": "🍷",
+  "Bebidas No Alcohólicas": "🥤",
+  "Café y Té": "☕",
+  "Dulces y Confituras": "🍬",
+  "Snacks y Botanas": "🥨",
+  "Comida Preparada": "🍱",
+  "Ropa y Textiles": "👕",
+  "Calzado y Accesorios": "👟",
+  "Hogar y Decoración": "🏡",
+  "Muebles y Enseres": "🛋️",
+  "Electrónica y Audio": "🎧",
+  "Electrodomésticos Línea Blanca": "🧊",
+  "Computadoras y Accesorios": "💻",
+  "Teléfonos y Comunicaciones": "📱",
+  "Ferretería y Herramientas": "🔨",
+  "Materiales de Construcción": "🧱",
+  "Eléctricos y Plomería": "💡",
+  "Pintura y Acabados": "🎨",
+  "Cuidado Personal y Belleza": "🧴",
+  "Perfumería y Cosmética": "💅",
+  "Productos Farmacéuticos": "💊",
+  "Artículos Médicos": "🩺",
+  "Limpieza y Aseo": "🧹",
+  "Jardinería y Agricultura": "🌱",
+  "Automotriz y Repuestos": "🚗",
+  "Motos y Bicicletas": "🏍️",
+  "Deportes y Fitness": "⚽",
+  "Camping y Aventura": "⛺",
+  "Juguetes y Juegos": "🧸",
+  "Papelería y Oficina": "📎",
+  "Libros y Revistas": "📚",
+  "Música y Películas": "🎬",
+  "Mascotas y Animales": "🐕",
+  "Artesanías y Souvenirs": "🏺",
+  "Joyería y Relojería": "⌚",
+  "Maletas y Equipaje": "🧳",
+  "Bebés y Niños": "🍼",
+  "Salud y Bienestar": "🧘",
+  "Suplementos Nutricionales": "🏋️",
+  "Hogar Inteligente": "🤖",
+  "Repuestos y Accesorios Varios": "⚙️",
+  "Combustibles y Lubricantes": "⛽"
+};
+
 
 // Escuchar si otra pestaña pregunta o afirma estar usando el TPV
 canalTPV.onmessage = (evento) => {
@@ -431,6 +486,44 @@ function generarTicketCierre(reporte) {
   ventanaImpresion.document.close();
 }
 
+let categoriaSeleccionada = ""; // Almacena la categoría activa
+
+// Función para extraer divisiones y pintar los botones
+function renderizarCategorias() {
+    const contenedor = document.getElementById("carrusel-categorias");
+    if (!contenedor) return;
+    
+    contenedor.innerHTML = ""; // Limpiar carrusel actual
+
+    // Extraer valores únicos de "division", descartando vacíos o nulos
+    const categoriasUnicas = [...new Set(catalogoLocal.map(p => p.division))]
+        .filter(cat => cat && cat.trim() !== "")
+        .sort(); // Opcional: ordenar alfabéticamente
+
+    // Crear el botón por defecto de "Todas" las categorías
+    const btnTodas = document.createElement("button");
+    btnTodas.className = `btn-categoria ${categoriaSeleccionada === "" ? "activa" : ""}`;
+    btnTodas.innerText = "Todas";
+    btnTodas.onclick = () => seleccionarCategoria("");
+    contenedor.appendChild(btnTodas);
+
+    // Crear un botón por cada categoría única detectada en la BD
+    categoriasUnicas.forEach(cat => {
+        const btn = document.createElement("button");
+        btn.className = `btn-categoria ${categoriaSeleccionada === cat ? "activa" : ""}`;
+        btn.innerText = cat;
+        btn.onclick = () => seleccionarCategoria(cat);
+        contenedor.appendChild(btn);
+    });
+}
+
+// Acción al presionar un botón del carrusel
+function seleccionarCategoria(categoria) {
+    categoriaSeleccionada = categoria; // Actualizar variable global
+    renderizarCategorias(); // Re-renderizar para actualizar el color del botón activo
+    filtrarCatalogo(); // Aplicar el filtro a los productos
+}
+
 
 
 // ==========================================
@@ -480,7 +573,7 @@ async function cargarCatalogo() {
     const guardado = localStorage.getItem("catalogoLocal");
     if (guardado) catalogoLocal = JSON.parse(guardado);
   }
-
+  renderizarCategorias();
   renderizarCatalogo();
 }
 
@@ -511,21 +604,26 @@ async function cargarClientes() {
 // ==========================================
 function filtrarCatalogo() {
   const textoBusqueda = normalizarTexto(
-    document.getElementById("buscar-producto").value
+      document.getElementById("buscar-producto").value
   );
 
-  // Filtramos sobre el array local en vez de ocultar nodos del DOM manualmente
   const catalogoFiltrado = catalogoLocal.filter((prod) => {
-    const nombreNorm = normalizarTexto(prod.nombre);
-    const divisionNorm = normalizarTexto(prod.division); // Permite buscar también por categoría
+      const nombreNorm = normalizarTexto(prod.nombre);
+      const divisionNorm = normalizarTexto(prod.division);
 
-    return (
-      nombreNorm.includes(textoBusqueda) || divisionNorm.includes(textoBusqueda)
-    );
+      // 1. Evalúa el buscador de texto (busca en nombre o en la división)
+      const coincideTexto = nombreNorm.includes(textoBusqueda) || divisionNorm.includes(textoBusqueda);
+      
+      // 2. Evalúa si el producto pertenece a la categoría clickeada (o si está en "Todas")
+      const coincideCategoria = (categoriaSeleccionada === "") || (prod.division === categoriaSeleccionada);
+
+      // Debe cumplir con ambas condiciones para mostrarse
+      return coincideTexto && coincideCategoria;
   });
 
   renderizarCatalogo(catalogoFiltrado);
 }
+
 
 function renderizarCatalogo(productosFiltrados = catalogoLocal) {
   const contenedor = document.getElementById("catalogo-container");
@@ -543,35 +641,43 @@ function renderizarCatalogo(productosFiltrados = catalogoLocal) {
     const esBajoStock =
       prod.existencia > 0 && prod.existencia <= (prod.stock_minimo || 5);
 
+      const iconoCategoria = imagenesCategoria[prod.division] || "📦";
+
     const btn = document.createElement("div");
     // Asignación de clases dinámicas según el estado
     btn.className = `producto-item ${esAgotado ? "agotado" : ""} ${
       esBajoStock ? "bajo-stock" : ""
     }`;
 
-    btn.innerHTML = `
-            <div class="producto-cuerpo">
-                <strong>${prod.nombre}</strong><br>
-                <span class="producto-precio">$${prod.precio}</span> 
-                <span class="producto-separador">|</span> 
-                <span class="producto-stock">Stock: ${prod.existencia}</span>
-            </div>
-            ${
-              cantidadAgregada > 0
-                ? `<span class="badge-cantidad-carrito">${cantidadAgregada}</span>`
-                : ""
-            }
-            ${
-              esAgotado
-                ? `<span class="badge-status-agotado">Agotado</span>`
-                : ""
-            }
-            ${
-              esBajoStock && cantidadAgregada === 0
-                ? `<span class="badge-status-bajo">¡Últimas!</span>`
-                : ""
-            }
-        `;
+        // NUEVO: Se agregó un contenedor para la imagen/icono en el innerHTML
+        btn.innerHTML = `
+        <div class="producto-icono" style="font-size: 2rem; margin-bottom: 8px;">
+            <!-- Si usas rutas de imágenes en vez de emojis, cambia esta línea por: <img src="${iconoCategoria}" alt="${prod.division}" style="width: 40px; height: 40px;"> -->
+            ${iconoCategoria}
+        </div>
+        <div class="producto-cuerpo">
+            <strong>${prod.nombre}</strong><br>
+            <span class="producto-precio">$${prod.precio}</span> 
+            <span class="producto-separador">|</span> 
+            <span class="producto-stock">Stock: ${prod.existencia}</span>
+        </div>
+        ${
+          cantidadAgregada > 0
+            ? `<span class="badge-cantidad-carrito">${cantidadAgregada}</span>`
+            : ""
+        }
+        ${
+          esAgotado
+            ? `<span class="badge-status-agotado">Agotado</span>`
+            : ""
+        }
+        ${
+          esBajoStock && cantidadAgregada === 0
+            ? `<span class="badge-status-bajo">¡Últimas!</span>`
+            : ""
+        }
+    `;
+
 
     if (esAgotado) {
       btn.style.cursor = "not-allowed";
