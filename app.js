@@ -9,6 +9,8 @@ let isSincronizandoVentas = false;
 let instanciaActual = localStorage.getItem("instancia") || null;
 let turnoActual = JSON.parse(localStorage.getItem("turnoActual")) || null;
 let instanciaPendienteLogin = null;
+let emojisPersonalizados = JSON.parse(localStorage.getItem("emojisPersonalizados")) || {};
+
 
 // NUEVO: Diccionario para recordar qué clave pertenece a qué instancia en modo Offline
 let credencialesOffline =
@@ -641,19 +643,20 @@ function renderizarCatalogo(productosFiltrados = catalogoLocal) {
     const esBajoStock =
       prod.existencia > 0 && prod.existencia <= (prod.stock_minimo || 5);
 
-      const iconoCategoria = imagenesCategoria[prod.division] || "📦";
+    // NUEVO: Validar si hay un emoji personalizado guardado; de lo contrario, usar el original
+    const iconoOriginal = imagenesCategoria[prod.division] || "📦";
+    const iconoFinal = emojisPersonalizados[prod.id] || iconoOriginal;
 
     const btn = document.createElement("div");
-    // Asignación de clases dinámicas según el estado
-    btn.className = `producto-item ${esAgotado ? "agotado" : ""} ${
-      esBajoStock ? "bajo-stock" : ""
-    }`;
+    btn.className = `producto-item ${esAgotado ? "agotado" : ""} ${esBajoStock ? "bajo-stock" : ""}`;
 
-        // NUEVO: Se agregó un contenedor para la imagen/icono en el innerHTML
-        btn.innerHTML = `
-        <div class="producto-icono" style="font-size: 2rem; margin-bottom: 8px;">
-            <!-- Si usas rutas de imágenes en vez de emojis, cambia esta línea por: <img src="${iconoCategoria}" alt="${prod.division}" style="width: 40px; height: 40px;"> -->
-            ${iconoCategoria}
+    // NUEVO: Modificamos el div de "producto-icono" para que tenga un botón de editar incorporado
+    btn.innerHTML = `
+        <div class="producto-icono" style="font-size: 2.2rem; margin-bottom: 8px; position: relative;">
+            ${iconoFinal}
+            <span onclick="abrirSelectorEmoji(event, '${prod.id}', '${prod.nombre}')" 
+                  style="position: absolute; top: -5px; right: -15px; font-size: 0.6rem; background: #e9ecef; border-radius: 50%; padding: 4px; cursor: pointer; border: 1px solid #ccc; box-shadow: 0 1px 3px rgba(0,0,0,0.2);" 
+                  title="Cambiar imagen">✏️</span>
         </div>
         <div class="producto-cuerpo">
             <strong>${prod.nombre}</strong><br>
@@ -661,23 +664,10 @@ function renderizarCatalogo(productosFiltrados = catalogoLocal) {
             <span class="producto-separador">|</span> 
             <span class="producto-stock">Stock: ${prod.existencia}</span>
         </div>
-        ${
-          cantidadAgregada > 0
-            ? `<span class="badge-cantidad-carrito">${cantidadAgregada}</span>`
-            : ""
-        }
-        ${
-          esAgotado
-            ? `<span class="badge-status-agotado">Agotado</span>`
-            : ""
-        }
-        ${
-          esBajoStock && cantidadAgregada === 0
-            ? `<span class="badge-status-bajo">¡Últimas!</span>`
-            : ""
-        }
+        ${cantidadAgregada > 0 ? `<span class="badge-cantidad-carrito">${cantidadAgregada}</span>` : ""}
+        ${esAgotado ? `<span class="badge-status-agotado">Agotado</span>` : ""}
+        ${esBajoStock && cantidadAgregada === 0 ? `<span class="badge-status-bajo">¡Últimas!</span>` : ""}
     `;
-
 
     if (esAgotado) {
       btn.style.cursor = "not-allowed";
@@ -2222,3 +2212,72 @@ window.addEventListener('appinstalled', (e) => {
     }
     console.log('TPV instalada correctamente');
 });
+
+
+// ==========================================
+// SISTEMA DE PERSONALIZACIÓN DE IMÁGENES (EMOJIS)
+// ==========================================
+
+function abrirSelectorEmoji(event, idProducto, nombreProducto) {
+  event.stopPropagation(); // Evita que se agregue el producto al carrito al presionar el lápiz
+
+  document.getElementById("emoji-producto-nombre").innerText = nombreProducto;
+  document.getElementById("emoji-producto-id").value = idProducto;
+
+  const grid = document.getElementById("grid-emojis");
+  grid.innerHTML = "";
+
+  // 1. Recopilar todos los emojis originales disponibles en tu diccionario actual
+  let emojisDisponibles = Object.values(imagenesCategoria);
+  
+  // 2. Agregar otros iconos extras generales que podrían servir
+  emojisDisponibles.push("🦁", "🐯", "🐅", "🐆", "🐴", "🐎", "🦄", "🦓", "🦌", "🐮", "🐂", "🐃", "🐄", "🐷", "🐖", "🐗", "🐽", "🐏", "🐑", "🐐", "🐪", "🐫", "🦙", "🦒", "🐘", "🦣", "🦏", "🦛", "🐭", "🐁", "🐀", "🐹", "🐰", "🐇", "🐿️", "🦫", "🦔", "🦇", "🐻", "🐻‍❄️", "🐨", "🐼", "🦥", "🦦", "🦨", "🦘", "🦡", "🐾", "🦃", "🐔", "🐓", "🐣", "🐤", "🐥", "🐦", "🐧", "🕊️", "🦅", "🦆", "🦢", "🦉", "🦤", "🦩", "🦚", "🦜", "🐸", "🐊", "🐢", "🦎", "🐍", "🐲", "🐉", "🦕", "🦖", "🐳", "🐋", "🐬", "🦭", "🐟", "🐠", "🐡", "🦈", "🐙", "🐚", "🐌", "🦋", "🐛", "🐜", "🐝", "🪲", "🐞", "🦗", "🪳", "🕷️", "🕸️", "🦂", "🦟", "🪰", "🪱", "🦠", "💐", "🌸", "💮", "🏵️", "🌹", "🥀", "🌺", "🌻", "🌼", "🌷", "🌱", "🌲", "🌳", "🌴", "🌵", "🌾", "🌿", "☘️", "🍀", "🍁", "🍂", "🍃", "🍇", "🍈", "🍉", "🍊", "🍋", "🍌", "🍍", "🥭", "🍎", "🍏", "🍐", "🍑", "🍒", "🍓", "🥝", "🍅", "🥥", "🥑", "🍆", "🥔", "🥕", "🌽", "🌶️", "🥬", "🥦", "🧄", "🧅", "🍄", "🥜", "🌰", "🍞", "🥐", "🥖", "🥨", "🥯", "🥞", "🧇", "🧀", "🍖", "🍗", "🥩", "🥓", "🍔", "🍟", "🍕", "🌭", "🥪", "🌮", "🌯", "🥙", "🧆", "🥚", "🍳", "🥘", "🍲", "🥣", "🥗", "🍿", "🧈", "🧂", "🥫", "🍱", "🍘", "🍙", "🍚", "🍛", "🍜", "🍝", "🍠", "🍢", "🍣", "🍤", "🍥", "🥮", "🍡", "🥟", "🥠", "🥡", "🦀", "🦞", "🦐", "🦑", "🍦", "🍧", "🍨", "🍩", "🍪", "🎂", "🍰", "🧁", "🥧", "🍫", "🍬", "🍭", "🍮", "🍯", "🍼", "🥛", "☕", "🫖", "🍵", "🍶", "🍾", "🍷", "🍸", "🍹", "🍺", "🍻", "🥂", "🥃", "🥤", "🧃", "🧉", "🧊", "🥢", "🍽️", "🍴", "🥄", "🔪", "🏺", "🌍", "🌎", "🌏", "🌐", "🗺️", "🗾", "🧭", "🏔️", "⛰️", "🌋", "🗻", "🏕️", "🏖️", "🏜️", "🏝️", "🏞️", "🏟️", "🏛️", "🏗️", "🧱", "🪨", "🪵", "🛖", "🏘️", "🏚️", "🏠", "🏡", "🏢", "🏣", "🏤", "🏥", "🏦", "🏨", "🏩", "🏪", "🏫", "🏬", "🏭", "🏯", "🏰", "💒", "🗼", "🗽", "⛪", "🕌", "🛕", "🕍", "⛩️", "🕋", "⛲", "⛺", "🌁", "🌃", "🏙️", "🌄", "🌅", "🌆", "🌇", "🌉", "♨️", "🎠", "🎡", "🎢", "💈", "🎪", "🚂", "🚃", "🚄", "🚅", "🚆", "🚇", "🚈", "🚉", "🚊", "🚝", "🚞", "🚋", "🚌", "🚍", "🚎", "🚐", "🚑", "🚒", "🚓", "🚔", "🚕", "🚖", "🚗", "🚘", "🚙", "🛻", "🚚", "🚛", "🚜", "🏎️", "🏍️", "🛵", "🦽", "🦼", "🛹", "🛼", "🚲", "🛴", "🛹", "🚏", "🛣️", "🛤️", "🛢️", "⛽", "🛞", "🚨", "🚥", "🚦", "🛑", "🚧", "⚓", "⛵", "🛶", "🚤", "🛳️", "⛴️", "🛥️", "🚢", "✈️", "🛩️", "🛫", "🛬", "🪂", "💺", "🚁", "🚟", "🚠", "🚡", "🛰️", "🚀", "🛸", "🛎️", "🧳", "⌛", "⏳", "⌚", "⏰", "⏱️", "⏲️", "🕰️", "🕛", "🕧", "🕐", "🕜", "🕑", "🕝", "🕒", "🕞", "🕓", "🕟", "🕔", "🕠", "🕕", "🕡", "🕖", "🕢", "🕗", "🕣", "🕘", "🕤", "🕙", "🕥", "🕚", "🕦", "🌑", "🌒", "🌓", "🌔", "🌕", "🌖", "🌗", "🌘", "🌙", "🌚", "🌛", "🌜", "🌝", "🌞", "⭐", "🌟", "🌠", "🌌", "☀️", "⛅", "☁️", "🌥️", "🌦️", "🌧️", "🌨️", "🌩️", "🌪️", "🌫️", "🌬️", "🌀", "🌈", "🌂", "☂️", "☔", "⛱️", "⚡", "❄️", "☃️", "⛄", "☄️", "🔥", "💧", "🌊", "🎃", "🎄", "🎆", "🎇", "🧨", "✨", "🎈", "🎉", "🎊", "🎋", "🎍", "🎎", "🎏", "🎐", "🎑", "🧧", "🎀", "🎁", "🎗️", "🎟️", "🎫", "🎖️", "🏆", "🏅", "🥇", "🥈", "🥉", "⚽", "⚾", "🥎", "🏀", "🏐", "🏈", "🏉", "🎾", "🥏", "🎳", "🏏", "🏑", "🏒", "🥍", "🏓", "🏸", "🥊", "🥋", "🥅", "⛳", "⛸️", "🎣", "🤿", "🎽", "🎿", "🏂", "🛷", "🥌", "🎯", "🎱", "🔮", "🪄", "🎮", "🕹️", "🎰", "🎲", "🧩", "🧸", "🪅", "🪩", "🪆", "♠️", "♥️", "♦️", "♣️", "♟️", "🃏", "🀄", "🎴", "🔇", "🔈", "🔉", "🔊", "📢", "📣", "📯", "🔔", "🔕", "🎼", "🎵", "🎶", "🎙️", "🎚️", "🎛️", "🎤", "🎧", "📻", "🎷", "🪗", "🎸", "🎹", "🎺", "🎻", "🪕", "🥁", "🪘", "📱", "📲", "☎️", "📞", "📟", "📠", "🔋", "🪫", "🔌", "💻", "🖥️", "🖨️", "⌨️", "🖱️", "🖲️", "💽", "💾", "💿", "📀", "🧮", "🎥", "🎞️", "📽️", "🎬", "📺", "📷", "📸", "📹", "📼", "🔍", "🔎", "🕯️", "💡", "🔦", "🏮", "🪔", "📔", "📕", "📖", "📗", "📘", "📙", "📚", "📓", "📒", "📃", "📜", "📄", "📰", "🗞️", "📑", "🔖", "🏷️", "💰", "🪙", "💴", "💵", "💶", "💷", "💸", "💳", "🧾", "💹", "✉️", "📧", "📨", "📩", "📤", "📥", "📦", "📫", "📪", "📬", "📭", "📮", "🗳️", "✏️", "✒️", "🖋️", "🖊️", "🖌️", "🖍️", "📝", "💼", "📁", "📂", "🗂️", "📅", "📆", "🗒️", "🗓️", "📇", "📈", "📉", "📊", "📋", "📌", "📍", "📎", "🖇️", "📏", "📐", "✂️", "🗃️", "🗄️", "🗑️", "🔒", "🔓", "🔏", "🔐", "🔑", "🗝️", "🔨", "🪓", "⛏️", "⚒️", "🛠️", "🗡️", "⚔️", "🔫", "🪃", "🏹", "🛡️", "🪚", "🔧", "🪛", "🔩", "⚙️", "🗜️", "⚖️", "🦯", "🔗", "⛓️", "🪝", "🧰", "🧲", "🪜", "⚗️", "🧪", "🧫", "🧬", "🔬", "🔭", "📡", "💉", "🩸", "💊", "🩹", "🩺", "🚪", "🛗", "🪞", "🪟", "🛏️", "🛋️", "🪑", "🚽", "🪠", "🚿", "🛁", "🪤", "🪣", "🧹", "🧺", "🧻", "🪆", "🧴", "🧷", "🧸", "🧶", "🧵", "🪡", "🪢", "🪣", "🧤", "🧥", "🧦", "👖", "🧣", "🧤", "🧥", "🧦", "👗", "👘", "🥻", "🩱", "🩲", "🩳", "👙", "👚", "👛", "👜", "👝", "🛍️", "🎒", "👞", "👟", "🥾", "🥿", "👠", "👡", "👢", "👑", "👒", "🎩", "🎓", "🧢", "🪖", "⛑️", "📿", "💄", "💍", "💎", "🔇", "🔈", "🔉", "🔊", "📢", "📣", "📯", "🔔", "🔕", "🎼", "🎵", "🎶", "🎙️", "🎚️", "🎛️", "🎤", "🎧", "📻", "🎷", "🪗", "🎸", "🎹", "🎺", "🎻", "🪕", "🥁", "🪘", "📱", "📲", "☎️", "📞", "📟", "📠", "🔋", "🪫", "🔌", "💻", "🖥️", "🖨️", "⌨️", "🖱️", "🖲️", "💽", "💾", "💿", "📀", "🧮", "🎥", "🎞️", "📽️", "🎬", "📺", "📷", "📸", "📹", "📼", "🔍", "🔎", "🕯️", "💡", "🔦", "🏮", "🪔", "📔", "📕", "📖", "📗", "📘", "📙", "📚", "📓", "📒", "📃", "📜", "📄", "📰", "🗞️", "📑", "🔖", "🏷️", "💰", "🪙", "💴", "💵", "💶", "💷", "💸", "💳", "🧾", "💹", "✉️", "📧", "📨", "📩", "📤", "📥", "📦", "📫", "📪", "📬", "📭", "📮", "🗳️", "✏️", "✒️", "🖋️", "🖊️", "🖌️", "🖍️", "📝", "💼", "📁", "📂", "🗂️", "📅", "📆", "🗒️", "🗓️", "📇", "📈", "📉", "📊", "📋", "📌", "📍", "📎", "🖇️", "📏", "📐", "✂️", "🗃️", "🗄️", "🗑️", "🔒", "🔓", "🔏", "🔐", "🔑", "🗝️", "🔨", "🪓", "⛏️", "⚒️", "🛠️", "🗡️", "⚔️", "🔫", "🪃", "🏹", "🛡️", "🪚", "🔧", "🪛", "🔩", "⚙️", "🗜️", "⚖️", "🦯", "🔗", "⛓️", "🪝", "🧰", "🧲", "🪜", "⚗️", "🧪", "🧫", "🧬", "🔬", "🔭", "📡", "💉", "🩸", "💊", "🩹", "🩺", "🚪", "🛗", "🪞", "🪟", "🛏️", "🛋️", "🪑", "🚽", "🪠", "🚿", "🛁", "🪤", "🪣", "🧹", "🧺", "🧻", "🪆", "🧴", "🧷", "🧶", "🧵", "🪡", "🪢", "🧤", "🧥", "🧦", "👖", "🧣", "👗", "👘", "🥻", "🩱", "🩲", "🩳", "👙", "👚", "👛", "👜", "👝", "🛍️", "🎒", "👞", "👟", "🥾", "🥿", "👠", "👡", "👢", "👑", "👒", "🎩", "🎓", "🧢", "🪖", "⛑️", "📿", "💄", "💍", "💎", "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔", "❤️‍🔥", "❤️‍🩹", "💕", "💞", "💓",);
+  
+  // 3. Quitar duplicados
+  const uniqueEmojis = [...new Set(emojisDisponibles)];
+
+  // 4. Dibujar la cuadrícula
+  uniqueEmojis.forEach(emoji => {
+      const btnEmoji = document.createElement("div");
+      btnEmoji.style.cursor = "pointer";
+      btnEmoji.style.padding = "5px";
+      btnEmoji.style.borderRadius = "8px";
+      btnEmoji.style.transition = "background-color 0.2s";
+      btnEmoji.innerText = emoji;
+      
+      // Efecto hover simple por JS
+      btnEmoji.onmouseover = () => btnEmoji.style.backgroundColor = "#e2e8f0";
+      btnEmoji.onmouseout = () => btnEmoji.style.backgroundColor = "transparent";
+      
+      btnEmoji.onclick = () => guardarEmoji(idProducto, emoji);
+      grid.appendChild(btnEmoji);
+  });
+
+  document.getElementById("modal-emoji").style.display = "flex";
+}
+
+function guardarEmoji(idProducto, nuevoEmoji) {
+  // Guarda el emoji en el diccionario local
+  emojisPersonalizados[idProducto] = nuevoEmoji;
+  
+  // Persiste en el navegador
+  localStorage.setItem("emojisPersonalizados", JSON.stringify(emojisPersonalizados));
+  
+  cerrarModal("modal-emoji");
+  filtrarCatalogo(); // Re-renderiza el catálogo para aplicar el cambio visualmente
+  mostrarToast("Imagen del producto actualizada", "success");
+}
+
+function restaurarEmojiOriginal() {
+  const idProducto = document.getElementById("emoji-producto-id").value;
+  
+  // Elimina la personalización del diccionario
+  delete emojisPersonalizados[idProducto];
+  
+  // Actualiza el navegador
+  localStorage.setItem("emojisPersonalizados", JSON.stringify(emojisPersonalizados));
+  
+  cerrarModal("modal-emoji");
+  filtrarCatalogo(); 
+  mostrarToast("Imagen restaurada al valor original", "info");
+}
