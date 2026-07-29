@@ -183,6 +183,7 @@ header button {
     user-select: none; /* Evita que el texto se seleccione al hacer doble tap */
     border: 1px solid transparent;
     transition: all 0.2s ease;
+    padding-bottom: 30px;
 }
 
 .producto-item:active {
