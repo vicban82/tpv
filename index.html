@@ -55,21 +55,9 @@
 
 
         <main>
-            <!-- Buscador compacto con lupa integrada -->
-            <div style="padding: 10px 15px;">
-                <div style="position: relative;">
-                    <span
-                        style="position: absolute; left: 12px; top: 42%; transform: translateY(-50%); font-size: 1.1rem; color: #6c757d;">🔍</span>
-                    <input type="text" id="buscar-producto" placeholder="Buscar producto..."
-                        onkeyup="filtrarCatalogo()">
-                </div>
-            </div>
-
-
-
             <!-- Carrusel horizontal de acciones (Ocupa 1 sola línea deslizable) -->
             <div class="acciones-inventario"
-                style="display: flex; gap: 10px; overflow-x: auto; padding: 0 15px 15px 15px; white-space: nowrap; scrollbar-width: none; -ms-overflow-style: none;">
+                style="display: flex; gap: 10px; overflow-x: auto; padding: 15px 15px 15px 15px; white-space: nowrap; scrollbar-width: none; -ms-overflow-style: none;">
                 <button onclick="abrirModalTransferencia()"
                     style="background-color: #17a2b8; border-radius: 20px; padding: 8px 15px; flex-shrink: 0;">📦
                     Transferir</button>
@@ -83,8 +71,20 @@
                     style="background-color: #dc3545; border-radius: 20px; padding: 8px 15px; flex-shrink: 0;">💸
                     Retiro</button>
             </div>
+            <!-- Buscador compacto con lupa integrada -->
+            <div style="padding: 10px 15px;">
+                <div style="position: relative;">
+                    <span
+                        style="position: absolute; left: 12px; top: 42%; transform: translateY(-50%); font-size: 1.1rem; color: #6c757d;">🔍</span>
+                    <input type="text" id="buscar-producto" placeholder="Buscar producto..."
+                        onkeyup="filtrarCatalogo()">
+                </div>
+            </div>
 
-
+            <!-- NUEVO: Carrusel horizontal de Categorías -->
+            <div id="carrusel-categorias" class="carrusel-categorias">
+                <!-- Se llenará dinámicamente desde app.js -->
+            </div>
 
             <div id="modal-transferencia" class="modal-overlay" style="display:none;">
                 <div class="modal-content">

@@ -981,3 +981,47 @@ header button {
 .acciones-inventario::-webkit-scrollbar {
     display: none;
 }
+
+
+/* =========================================
+   CARRUSEL DE CATEGORÍAS
+========================================= */
+.carrusel-categorias {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 0 15px 15px 15px;
+    white-space: nowrap;
+    scrollbar-width: none; /* Oculta scroll en Firefox */
+    -ms-overflow-style: none; /* Oculta scroll en IE/Edge */
+}
+
+.carrusel-categorias::-webkit-scrollbar {
+    display: none; /* Oculta scroll en Chrome/Safari/iOS */
+}
+
+.btn-categoria {
+    background-color: white;
+    color: #495057;
+    border: 1px solid #ced4da;
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.btn-categoria:hover {
+    background-color: #f8f9fa;
+}
+
+/* Estado activo para el botón de categoría seleccionado */
+.btn-categoria.activa {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.2);
+}
