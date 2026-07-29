@@ -22,11 +22,11 @@ const canalTPV = new BroadcastChannel('canal_tpv_sesiones');
 // Diccionario de imágenes/iconos por categoría
 //Carnes y Embutidos": "img/carnes.jpg".
 const imagenesCategoria = {
-  "Alimentos y Bebidas": "🥫",
+  "Alimentos y Bebidas": "🥣",
   "Panadería y Pastelería": "🥖",
   "Carnes y Embutidos": "🥩",
   "Pescados y Mariscos": "🐟",
-  "Frutas y Verduras": "🥦",
+  "Frutas y Verduras": "🍉",
   "Granos y Cereales": "🌾",
   "Lácteos y Huevos": "🥚",
   "Bebidas Alcohólicas": "🍷",
