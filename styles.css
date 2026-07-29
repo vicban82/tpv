@@ -42,7 +42,10 @@ body {
     left: 0;
     z-index: 1000;
     transition: background-color 0.3s ease;
+    /* NUEVO: Color de fondo por defecto mientras dice "Verificando conexión..." */
+    background-color: #17a2b8; /* Azul claro / Info */
 }
+
 
 .status-bar.online {
     background-color: var(--success-color);
