@@ -30,9 +30,26 @@
 
         <img src="logo.png" alt="Logo de la aplicacion" class="logo-login">
         <h2>Acceso TPV</h2>
-        <input type="password" id="clave-input" placeholder="Ingrese su clave" autocomplete="current-password">
-        <button onclick="iniciarSesion()">Entrar</button>
+        
+        <!-- SECCIÓN 1: Configuración de la URL de la API -->
+        <div id="setup-api-section" style="display: none; width: 100%; flex-direction: column; align-items: center;">
+            <p style="font-size: 0.9rem; margin-bottom: 15px; color: #666; text-align: center; padding: 0 20px;">Clave de acceso al entorno de trabajo en la nube.</p>
+            <input type="text" id="api-url-input" placeholder="Ingrese la clave aqui">
+            <button onclick="guardarConfiguracionAPI()">Guardar Configuración</button>
+        </div>
+
+        <!-- SECCIÓN 2: Formulario de Login Estándar -->
+        <div id="login-form-section" style="display: none; width: 100%; flex-direction: column; align-items: center;">
+            <input type="password" id="clave-input" placeholder="Ingrese su clave" autocomplete="current-password">
+            <button onclick="iniciarSesion()">Entrar</button>
+            
+            <!-- Botón para restablecer la API -->
+            <button onclick="resetearAPI()" style="background: none; border: none; color: #6c757d; font-size: 0.85rem; margin-top: 25px; text-decoration: underline; padding: 5px; box-shadow: none;">
+                ⚙️ Cambiar clave de entorno
+            </button>
+        </div>
     </div>
+
 
     <div id="tpv-screen" class="screen">
         <header
@@ -142,7 +159,7 @@
                             <label for="abono-monto" class="label-destacado">💵 Monto a Abonar:</label>
                             <div class="input-currency-wrapper">
                                 <span class="currency-symbol">$</span>
-                                <input type="number" id="abono-monto" min="1" step="0.01" placeholder="0.00">
+                                <input type="text" id="abono-monto" class="input-moneda" inputmode="decimal" placeholder="0.00" oninput="formatearMoneda(this)">
                             </div>
                         </div>
 
@@ -354,7 +371,7 @@
 
                                     <div class="input-group">
                                         <label for="nuevo-limite">💳 Límite de Crédito ($):</label>
-                                        <input type="number" id="nuevo-limite" placeholder="0.00" min="0" step="0.01">
+                                        <input type="text" id="nuevo-limite" class="input-moneda" inputmode="decimal" placeholder="0.00" oninput="formatearMoneda(this)">
                                     </div>
                                 </div>
                             </div>
@@ -365,8 +382,9 @@
                             <label for="monto-pagado">Pagó con:</label>
                             <div class="input-currency-wrapper">
                                 <span class="currency-symbol">$</span>
-                                <input type="number" id="monto-pagado" placeholder="0.00" onkeyup="calcularVuelto()"
-                                    onchange="calcularVuelto()">
+                                <!-- Mantén tus eventos onkeyup y onchange existentes -->
+<input type="text" id="monto-pagado" class="input-moneda" inputmode="decimal" placeholder="0.00" onkeyup="calcularVuelto()" onchange="calcularVuelto()" oninput="formatearMoneda(this)">
+
                             </div>
                             <div class="vuelto-container">
                                 <strong>Vuelto: <span id="vuelto-importe" class="vuelto-importe">$0.00</span></strong>
@@ -480,7 +498,8 @@
                     <div class="input-currency-wrapper">
                         <span class="currency-symbol">$</span>
                         <!-- El input principal sigue libre por si hay monedas fraccionarias que sumar manualmente -->
-                        <input type="number" id="efectivo-declarado" min="0" step="0.01" placeholder="0.00">
+                        <input type="text" id="efectivo-declarado" class="input-moneda" inputmode="decimal" placeholder="0.00" oninput="formatearMoneda(this)">
+
                     </div>
                 </div>
             </div>
@@ -511,7 +530,7 @@
                     <label for="egreso-monto" class="label-destacado">💵 Monto a Retirar:</label>
                     <div class="input-currency-wrapper">
                         <span class="currency-symbol">$</span>
-                        <input type="number" id="egreso-monto" min="0.01" step="0.01" placeholder="0.00">
+                        <input type="text" id="egreso-monto" class="input-moneda" inputmode="decimal" placeholder="0.00" oninput="formatearMoneda(this)">
                     </div>
                 </div>
                 <div class="input-group">
@@ -565,7 +584,7 @@
                     <label for="fondo-inicial" class="label-destacado">💰 Fondo Inicial (Caja):</label>
                     <div class="input-currency-wrapper">
                         <span class="currency-symbol">$</span>
-                        <input type="number" id="fondo-inicial" min="0" step="0.01" placeholder="0.00" value="0">
+                        <input type="text" id="fondo-inicial" class="input-moneda" inputmode="decimal" placeholder="0.00" value="0" oninput="formatearMoneda(this)">
                     </div>
                 </div>
             </div>

@@ -1,7 +1,5 @@
 // URL de tu implementación de Google Apps Script
-const API_URL =
-  "https://script.google.com/macros/s/AKfycbwdd8aVW1WM7wyzxT-JdXjzRp7Fk4qnwVY5xr_ryxQnHKqQGFjIM-4r-dHuMbKqutJB/exec";
-
+let API_URL = localStorage.getItem("API_URL") || null;
 let catalogoLocal = [];
 let carrito = [];
 let clientesLocal = [];
@@ -160,6 +158,60 @@ async function verificarConexionReal() {
 }
 
 
+// ==========================================
+// CONFIGURACIÓN DINÁMICA DE LA API
+// ==========================================
+function verificarConfiguracionAPI() {
+  const setupSection = document.getElementById("setup-api-section");
+  const loginSection = document.getElementById("login-form-section");
+
+  if (!API_URL) {
+      // Si no hay URL guardada, mostramos el campo de configuración y ocultamos el login
+      setupSection.style.display = "flex";
+      loginSection.style.display = "none";
+  } else {
+      // Si ya hay URL, ocultamos la configuración y mostramos el login
+      setupSection.style.display = "none";
+      loginSection.style.display = "flex";
+  }
+}
+
+function guardarConfiguracionAPI() {
+  const urlInput = document.getElementById("api-url-input").value.trim();
+  
+  // Validación básica
+  if (!urlInput || !urlInput.startsWith("http")) {
+      return mostrarToast("Debe ingresar una URL válida.", "error");
+  }
+  
+  API_URL = urlInput;
+  localStorage.setItem("API_URL", API_URL);
+  mostrarToast("URL configurada con éxito.", "success");
+  verificarConfiguracionAPI(); // Actualiza la vista
+}
+
+function resetearAPI() {
+  mostrarConfirmacion("¿Está seguro que desea cambiar la URL del servidor? Se cerrará la sesión actual.").then((confirmado) => {
+      if (confirmado) {
+          API_URL = null;
+          localStorage.removeItem("API_URL");
+          
+          // Limpiar los campos visuales
+          document.getElementById("api-url-input").value = "";
+          document.getElementById("clave-input").value = "";
+          
+          // Forzar un cierre local por seguridad si el usuario estuviera logueado
+          forzarCierreLocal(); 
+          
+          // Actualizar la vista
+          verificarConfiguracionAPI();
+          mostrarToast("URL borrada. Ingrese la nueva URL.", "info");
+      }
+  });
+}
+
+
+
 
 // ==========================================
 // AUTENTICACIÓN
@@ -279,7 +331,7 @@ function intentarAccesoOffline(clave) {
 
 function confirmarApertura() {
   console.log("[DEBUG LOGIN] 8. Botón 'Confirmar y Entrar' presionado en modal de apertura.");
-    const fondo = parseFloat(document.getElementById('fondo-inicial').value) || 0;
+    const fondo = leerMontoLimpiado('fondo-inicial');
     
     // Inicializamos el objeto del turno
     turnoActual = {
@@ -380,7 +432,7 @@ async function ejecutarCierreCaja() {
   }
 
 
-  const declarado = parseFloat(document.getElementById('efectivo-declarado').value);
+  const declarado = leerMontoLimpiado('efectivo-declarado');
   if (isNaN(declarado) || declarado < 0) return mostrarToast("Ingrese un monto válido", "error");
 
   if (!turnoActual) {
@@ -838,7 +890,8 @@ function calcularVuelto() {
   const total = parseFloat(totalTexto) || 0;
 
   const inputPagado = document.getElementById("monto-pagado").value;
-  const pagado = parseFloat(inputPagado) || 0;
+  // CORRECCIÓN: Usar leerMontoLimpiado para ignorar las comas del formato visual
+  const pagado = leerMontoLimpiado("monto-pagado");
 
   const vuelto = pagado - total;
   const spanVuelto = document.getElementById("vuelto-importe");
@@ -857,6 +910,7 @@ function calcularVuelto() {
     spanVuelto.style.color = "var(--success-color)";
   }
 }
+
 
 // ==========================================
 // MÓDULO DE TRANSFERENCIAS E INVENTARIO
@@ -1087,7 +1141,7 @@ function procesarVenta() {
 
   if (metodoPago !== "credito") {
     const inputPagado = document.getElementById("monto-pagado").value;
-    montoPagado = parseFloat(inputPagado);
+    montoPagado = leerMontoLimpiado('monto-pagado');
     if (isNaN(montoPagado) || inputPagado === "") montoPagado = totalTicket;
     vueltoTotal = montoPagado - totalTicket;
 
@@ -1122,9 +1176,7 @@ function procesarVenta() {
       clienteId = clienteObj.id;
     } else {
       // Crear cliente nuevo offline
-      const nuevoLimite = parseFloat(
-        document.getElementById("nuevo-limite").value
-      );
+      const nuevoLimite = leerMontoLimpiado('nuevo-limite');
       const nuevoTel = document.getElementById("nuevo-telefono").value;
 
       if (isNaN(nuevoLimite) || nuevoLimite < totalTicket)
@@ -1287,6 +1339,7 @@ async function sincronizarVentasPendientes() {
 // Inicialización de la App
 window.onload = async () => {
   manejarEstadoRed();
+  verificarConfiguracionAPI(); // <-- NUEVO: Chequear qué pantalla mostrar
   if (instanciaActual) {
     const tokenLocal = localStorage.getItem("tokenSesion");
 
@@ -1832,7 +1885,7 @@ function actualizarBadgeDeudaAbono() {
 
 async function ejecutarAbono() {
   const idCliente = document.getElementById("abono-cliente").value;
-  const monto = parseFloat(document.getElementById("abono-monto").value);
+  const monto = leerMontoLimpiado('abono-monto');
   const metodo = document.getElementById("abono-metodo").value;
 
   if (!idCliente) return mostrarToast("Seleccione un cliente.", "warning");
@@ -1930,7 +1983,7 @@ function abrirModalEgreso() {
 //Egresos y Retiros
 function ejecutarEgreso() {
   const tipo = document.getElementById('egreso-tipo').value;
-  const monto = parseFloat(document.getElementById('egreso-monto').value);
+  const monto = leerMontoLimpiado('egreso-monto');
   const concepto = document.getElementById('egreso-concepto').value;
 
   if (!monto || monto <= 0) return mostrarToast("Ingrese un monto válido", "error");
@@ -2329,4 +2382,41 @@ function restaurarEmojiOriginal() {
   cerrarModal("modal-emoji");
   filtrarCatalogo(); 
   mostrarToast("Imagen restaurada al valor original", "info");
+}
+
+
+// ==========================================
+// FORMATEO CONTABLE DE CAMPOS MONETARIOS
+// ==========================================
+function formatearMoneda(input) {
+  // 1. Obtener el valor actual y quitar todo excepto números y puntos
+  let valor = input.value.replace(/[^\d.]/g, '');
+  
+  // 2. Prevenir múltiples puntos decimales
+  let partes = valor.split('.');
+  if (partes.length > 2) {
+      partes.pop(); // Elimina el punto extra
+      valor = partes.join('.');
+  }
+  
+  // 3. Limitar a dos decimales contables
+  if (partes.length === 2 && partes[1].length > 2) {
+      partes[1] = partes[1].substring(0, 2);
+  }
+  
+  // 4. Agregar separador de miles/millones a la parte entera
+  if (partes[0].length > 3) {
+      partes[0] = partes[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+  
+  // 5. Devolver el valor formateado al input
+  input.value = partes.join('.');
+}
+
+// Función auxiliar para leer importes correctamente
+function leerMontoLimpiado(idElemento) {
+  const valor = document.getElementById(idElemento).value;
+  if (!valor) return 0;
+  // Remueve las comas y convierte a Float
+  return parseFloat(valor.replace(/,/g, '')) || 0;
 }
