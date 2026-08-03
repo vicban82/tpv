@@ -1,12 +1,12 @@
 // Nombre de la caché (Cambia el "v1" a "v2", "v3" etc., cuando actualices tu código para forzar la recarga)
-const CACHE_NAME = 'tpv-cache-v221';
+const CACHE_NAME = 'tpv-cache-v220';
 
 // Archivos críticos que deben guardarse para que la app funcione sin internet
 const urlsToCache = [
-  './',
-  './index.html',
-  './styles.css',   
-  './app.js',
+  './' + VERSION,
+  './index.html' + VERSION,
+  './styles.css' + VERSION,  
+  './app.js' + VERSION,
   './manifest.json',
   './FavIcon.png',
   './logo.png',
@@ -18,19 +18,31 @@ const urlsToCache = [
 ];
 
 // ==========================================
-// 1. FASE DE INSTALACIÓN
+// 1. FASE DE INSTALACIÓN (Modificada)
 // ==========================================
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('SW: Archivos cacheados correctamente');
-        return cache.addAll(urlsToCache);
+        console.log('SW: Archivos cacheados correctamente (Forzando red)');
+        // En lugar de cache.addAll(), forzamos la recarga ignorando la caché HTTP del navegador
+        return Promise.all(
+          urlsToCache.map(url => {
+            return fetch(new Request(url, { cache: 'reload' }))
+              .then(response => {
+                if (!response.ok) {
+                  throw new Error(`Error al cachear: ${url}`);
+                }
+                return cache.put(url, response);
+              });
+          })
+        );
       })
   );
   // Fuerza a que este Service Worker se active inmediatamente
   self.skipWaiting(); 
 });
+
 
 // ==========================================
 // 2. FASE DE ACTIVACIÓN
