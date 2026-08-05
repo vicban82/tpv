@@ -176,19 +176,42 @@ function verificarConfiguracionAPI() {
   }
 }
 
-function guardarConfiguracionAPI() {
-  const urlInput = document.getElementById("api-url-input").value.trim();
+// ==========================================
+// CONFIGURACIÓN DINÁMICA DE LA API
+// ==========================================
+async function guardarConfiguracionAPI() {
+  let urlInput = document.getElementById("api-url-input").value.trim();
   
-  // Validación básica
-  if (!urlInput || !urlInput.startsWith("http")) {
-      return mostrarToast("Debe ingresar una URL válida.", "error");
+  // Validación básica para evitar que se guarde un campo vacío
+  if (!urlInput) {
+      return mostrarToast("Debe ingresar una clave de entorno válida.", "error");
   }
   
-  API_URL = urlInput;
-  localStorage.setItem("API_URL", API_URL);
-  mostrarToast("URL configurada con éxito.", "success");
-  verificarConfiguracionAPI(); // Actualiza la vista
+  // Si el texto ingresado no es un enlace completo, concatenamos la estructura requerida
+  if (!urlInput.startsWith("http")) {
+      urlInput = "https://script.google.com/macros/s/" + urlInput + "/exec";
+  }
+
+  mostrarLoading("Verificando acceso a la base de datos...");
+
+  // Verificamos si la base de datos (Google Sheets) es accesible
+  const esAccesible = await verificarAccesoAPI(urlInput);
+
+  ocultarLoading();
+
+  if (esAccesible) {
+      // Solo guardamos si la verificación fue exitosa
+      API_URL = urlInput;
+      localStorage.setItem("API_URL", API_URL);
+      mostrarToast("Entorno vinculado y accesible con éxito.", "success");
+      verificarConfiguracionAPI(); // Actualiza la vista hacia el login
+  } else {
+      // Bloqueamos el guardado y avisamos al usuario
+      mostrarToast("Error: No se pudo conectar a la base de datos. Verifique la clave.", "error");
+  }
 }
+
+
 
 function resetearAPI() {
   mostrarConfirmacion("¿Está seguro que desea cambiar la URL del servidor? Se cerrará la sesión actual.").then((confirmado) => {
@@ -2419,4 +2442,28 @@ function leerMontoLimpiado(idElemento) {
   if (!valor) return 0;
   // Remueve las comas y convierte a Float
   return parseFloat(valor.replace(/,/g, '')) || 0;
+}
+
+
+// ==========================================
+// VERIFICACIÓN DE CONEXIÓN A LA API (PING)
+// ==========================================
+async function verificarAccesoAPI(urlTest) {
+  try {
+    // Enviamos un payload básico simulando un "ping"
+    const payload = { action: "ping", payload: {} };
+    
+    const response = await fetch(urlTest, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+
+    // Si Google Apps Script responde y es un JSON válido, la API existe y es accesible.
+    const data = await response.json();
+    return true; 
+  } catch (error) {
+    // Si hay un error de red, CORS, o devuelve HTML (ej. página no encontrada)
+    console.warn("Fallo la verificación de la API:", error);
+    return false;
+  }
 }
