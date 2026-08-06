@@ -220,24 +220,82 @@ async function guardarConfiguracionAPI() {
 
 
 function resetearAPI() {
-  mostrarConfirmacion("¿Está seguro que desea cambiar la URL del servidor? Se cerrará la sesión actual.").then((confirmado) => {
+  mostrarConfirmacion("¿Está seguro que desea restablecer la aplicación?").then(async (confirmado) => {
       if (confirmado) {
+          mostrarLoading("Restableciendo configuraciones...");
+
+          // --- NUEVO: Petición al backend para vaciar 'Entradas_Salidas' ---
+          if (navigator.onLine && API_URL) {
+              try {
+                  const payload = { action: "limpiar_entradas_salidas", payload: {} };
+                  await fetch(API_URL, {
+                      method: "POST",
+                      body: JSON.stringify(payload),
+                  });
+                  console.log("Tabla Entradas_Salidas vaciada con éxito en la nube.");
+              } catch (error) {
+                  console.warn("No se pudo conectar al servidor para vaciar la tabla.", error);
+              }
+          }
+          // ----------------------------------------------------------------
+
+          // 1. Limpiar las variables de entorno principales en memoria
           API_URL = null;
-          localStorage.removeItem("API_URL");
+          instanciaActual = null;
+          turnoActual = null;
           
-          // Limpiar los campos visuales
+          // 2. Destruir TODO el almacenamiento local (Configuraciones, tokens, base de datos offline)
+          localStorage.clear();
+          sessionStorage.clear();
+          
+          // 3. Limpiar los campos visuales
           document.getElementById("api-url-input").value = "";
           document.getElementById("clave-input").value = "";
           
-          // Forzar un cierre local por seguridad si el usuario estuviera logueado
+          // 4. Forzar el cierre visual de la caja
           forzarCierreLocal(); 
+
+          // 5. ELIMINAR EL SERVICE WORKER
+          if ('serviceWorker' in navigator) {
+              try {
+                  const registrations = await navigator.serviceWorker.getRegistrations();
+                  for (let registration of registrations) {
+                      await registration.unregister();
+                  }
+                  console.log("Service Worker desregistrado correctamente.");
+              } catch (error) {
+                  console.error("Error al desregistrar el Service Worker:", error);
+              }
+          }
+
+          // 6. VACIAR EL CACHE STORAGE (Archivos estáticos offline)
+          if ('caches' in window) {
+              try {
+                  const cacheKeys = await caches.keys();
+                  await Promise.all(cacheKeys.map(key => caches.delete(key)));
+                  console.log("Caché de archivos estáticos eliminada.");
+              } catch (error) {
+                  console.error("Error al vaciar Cache Storage:", error);
+              }
+          }
           
-          // Actualizar la vista
+          ocultarLoading();
+          
+          // 7. Actualizar la vista hacia el setup
           verificarConfiguracionAPI();
-          mostrarToast("URL borrada. Ingrese la nueva URL.", "info");
+          mostrarToast("Restablecimiento completo. Reiniciando...", "info");
+
+          // 8. Recargar la página sin caché
+          setTimeout(() => {
+              // El parámetro 'true' fuerza la recarga desde el servidor ignorando cachés residuales
+              window.location.reload(true);
+          }, 1500);
       }
   });
 }
+
+
+
 
 
 

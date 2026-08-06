@@ -30,10 +30,11 @@
 
         <img src="logo.png" alt="Logo de la aplicacion" class="logo-login">
         <h2>Acceso TPV</h2>
-        
+
         <!-- SECCIÓN 1: Configuración de la URL de la API -->
         <div id="setup-api-section" style="display: none; width: 100%; flex-direction: column; align-items: center;">
-            <p style="font-size: 0.9rem; margin-bottom: 15px; color: #666; text-align: center; padding: 0 20px;">Clave de acceso al entorno de trabajo en la nube.</p>
+            <p style="font-size: 0.9rem; margin-bottom: 15px; color: #666; text-align: center; padding: 0 20px;">Clave
+                de acceso al entorno de trabajo en la nube.</p>
             <input type="text" id="api-url-input" placeholder="Ingrese la clave aqui">
             <button onclick="guardarConfiguracionAPI()">Guardar Configuración</button>
         </div>
@@ -42,9 +43,10 @@
         <div id="login-form-section" style="display: none; width: 100%; flex-direction: column; align-items: center;">
             <input type="password" id="clave-input" placeholder="Ingrese su clave" autocomplete="current-password">
             <button onclick="iniciarSesion()">Entrar</button>
-            
+
             <!-- Botón para restablecer la API -->
-            <button onclick="resetearAPI()" style="background: none; border: none; color: #6c757d; font-size: 0.85rem; margin-top: 25px; text-decoration: underline; padding: 5px; box-shadow: none;">
+            <button onclick="resetearAPI()"
+                style="background: none; border: none; color: #6c757d; font-size: 0.85rem; margin-top: 25px; text-decoration: underline; padding: 5px; box-shadow: none;">
                 ⚙️ Cambiar clave de entorno
             </button>
         </div>
@@ -159,7 +161,8 @@
                             <label for="abono-monto" class="label-destacado">💵 Monto a Abonar:</label>
                             <div class="input-currency-wrapper">
                                 <span class="currency-symbol">$</span>
-                                <input type="text" id="abono-monto" class="input-moneda" inputmode="decimal" placeholder="0.00" oninput="formatearMoneda(this)">
+                                <input type="text" id="abono-monto" class="input-moneda" inputmode="decimal"
+                                    placeholder="0.00" oninput="formatearMoneda(this)">
                             </div>
                         </div>
 
@@ -265,7 +268,7 @@
                             <p>Abonos Recibidos (Filtro): <strong id="dash-abonos">$0.00</strong></p>
                             <p style="color: var(--primary-color); font-size: 1.1rem; margin-top: 5px;">Flujo de Caja
                                 Real: <strong id="dash-flujo-caja">$0.00</strong></p>
-                                <small>*(Ingresos en Caja + Abonos - Retiros)</small>
+                            <small>*(Ingresos en Caja + Abonos - Retiros)</small>
                         </div>
                         <div class="dash-card warning">
                             <h4>Estado Local</h4>
@@ -371,7 +374,8 @@
 
                                     <div class="input-group">
                                         <label for="nuevo-limite">💳 Límite de Crédito ($):</label>
-                                        <input type="text" id="nuevo-limite" class="input-moneda" inputmode="decimal" placeholder="0.00" oninput="formatearMoneda(this)">
+                                        <input type="text" id="nuevo-limite" class="input-moneda" inputmode="decimal"
+                                            placeholder="0.00" oninput="formatearMoneda(this)">
                                     </div>
                                 </div>
                             </div>
@@ -383,7 +387,9 @@
                             <div class="input-currency-wrapper">
                                 <span class="currency-symbol">$</span>
                                 <!-- Mantén tus eventos onkeyup y onchange existentes -->
-<input type="text" id="monto-pagado" class="input-moneda" inputmode="decimal" placeholder="0.00" onkeyup="calcularVuelto()" onchange="calcularVuelto()" oninput="formatearMoneda(this)">
+                                <input type="text" id="monto-pagado" class="input-moneda" inputmode="decimal"
+                                    placeholder="0.00" onkeyup="calcularVuelto()" onchange="calcularVuelto()"
+                                    oninput="formatearMoneda(this)">
 
                             </div>
                             <div class="vuelto-container">
@@ -498,7 +504,8 @@
                     <div class="input-currency-wrapper">
                         <span class="currency-symbol">$</span>
                         <!-- El input principal sigue libre por si hay monedas fraccionarias que sumar manualmente -->
-                        <input type="text" id="efectivo-declarado" class="input-moneda" inputmode="decimal" placeholder="0.00" oninput="formatearMoneda(this)">
+                        <input type="text" id="efectivo-declarado" class="input-moneda" inputmode="decimal"
+                            placeholder="0.00" oninput="formatearMoneda(this)">
 
                     </div>
                 </div>
@@ -530,7 +537,8 @@
                     <label for="egreso-monto" class="label-destacado">💵 Monto a Retirar:</label>
                     <div class="input-currency-wrapper">
                         <span class="currency-symbol">$</span>
-                        <input type="text" id="egreso-monto" class="input-moneda" inputmode="decimal" placeholder="0.00" oninput="formatearMoneda(this)">
+                        <input type="text" id="egreso-monto" class="input-moneda" inputmode="decimal" placeholder="0.00"
+                            oninput="formatearMoneda(this)">
                     </div>
                 </div>
                 <div class="input-group">
@@ -549,27 +557,30 @@
     </div>
 
     <!-- MODAL: SELECTOR DE EMOJIS (PERSONALIZACIÓN) -->
-<div id="modal-emoji" class="modal-overlay" style="display:none; z-index: 3500;">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>🎨 Personalizar Imagen</h3>
-        </div>
-        <div class="modal-body">
-            <p style="margin-bottom: 10px;">Seleccione un nuevo icono para: <strong id="emoji-producto-nombre" style="color: var(--primary-color);"></strong></p>
-            
-            <!-- Contenedor grid para los emojis -->
-            <div id="grid-emojis" style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 15px; max-height: 250px; overflow-y: auto; font-size: 2.2rem; justify-content: center; padding: 10px; background: #f8f9fa; border-radius: 8px; border: 1px solid #ddd;">
-                <!-- Los emojis se insertarán dinámicamente aquí -->
+    <div id="modal-emoji" class="modal-overlay" style="display:none; z-index: 3500;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🎨 Personalizar Imagen</h3>
             </div>
-            
-            <input type="hidden" id="emoji-producto-id">
-        </div>
-        <div class="modal-actions">
-            <button onc-lick="restaurarEmojiOriginal()" class="btn-cancelar" style="background-color: #ffc107; color: black; font-weight: bold;">Restaurar Original</button>
-            <button onclick="cerrarModal('modal-emoji')" class="btn-cancelar">Cancelar</button>
+            <div class="modal-body">
+                <p style="margin-bottom: 10px;">Seleccione un nuevo icono para: <strong id="emoji-producto-nombre"
+                        style="color: var(--primary-color);"></strong></p>
+
+                <!-- Contenedor grid para los emojis -->
+                <div id="grid-emojis"
+                    style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 15px; max-height: 250px; overflow-y: auto; font-size: 2.2rem; justify-content: center; padding: 10px; background: #f8f9fa; border-radius: 8px; border: 1px solid #ddd;">
+                    <!-- Los emojis se insertarán dinámicamente aquí -->
+                </div>
+
+                <input type="hidden" id="emoji-producto-id">
+            </div>
+            <div class="modal-actions">
+                <button onc-lick="restaurarEmojiOriginal()" class="btn-cancelar"
+                    style="background-color: #ffc107; color: black; font-weight: bold;">Restaurar Original</button>
+                <button onclick="cerrarModal('modal-emoji')" class="btn-cancelar">Cancelar</button>
+            </div>
         </div>
     </div>
-</div>
 
 
     <!-- MODAL: APERTURA DE CAJA -->
@@ -584,7 +595,8 @@
                     <label for="fondo-inicial" class="label-destacado">💰 Fondo Inicial (Caja):</label>
                     <div class="input-currency-wrapper">
                         <span class="currency-symbol">$</span>
-                        <input type="text" id="fondo-inicial" class="input-moneda" inputmode="decimal" placeholder="0.00" value="0" oninput="formatearMoneda(this)">
+                        <input type="text" id="fondo-inicial" class="input-moneda" inputmode="decimal"
+                            placeholder="0.00" value="0" oninput="formatearMoneda(this)">
                     </div>
                 </div>
             </div>
