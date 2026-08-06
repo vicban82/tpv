@@ -4,8 +4,13 @@ let catalogoLocal = [];
 let carrito = [];
 let clientesLocal = [];
 let isSincronizandoVentas = false;
-let instanciaActual = localStorage.getItem("instancia") || null;
-let turnoActual = JSON.parse(localStorage.getItem("turnoActual")) || null;
+
+let instanciaActual = sessionStorage.getItem("instancia") || null;
+let tokenSesionLocal = sessionStorage.getItem("tokenSesion") || null;
+
+// Para recuperar el turno al recargar la página:
+let turnoActual = instanciaActual ? JSON.parse(localStorage.getItem(`turnoActual_${instanciaActual}`)) : null;
+
 let instanciaPendienteLogin = null;
 let emojisPersonalizados = JSON.parse(localStorage.getItem("emojisPersonalizados")) || {};
 
@@ -76,20 +81,20 @@ const imagenesCategoria = {
 
 // Escuchar si otra pestaña pregunta o afirma estar usando el TPV
 canalTPV.onmessage = (evento) => {
-    // Si otra pestaña acaba de abrirse y pregunta quién está activo
-    if (evento.data.tipo === 'VERIFICAR_ACTIVO' && instanciaActual) {
-        canalTPV.postMessage({ tipo: 'SESION_ACTIVA', instancia: instanciaActual });
-    }
+  // Si alguien pregunta, respondemos con nuestra instancia activa
+  if (evento.data.tipo === 'VERIFICAR_ACTIVO' && instanciaActual) {
+      canalTPV.postMessage({ tipo: 'SESION_ACTIVA', instancia: instanciaActual });
+  }
 
-    // Si nosotros acabamos de preguntar, y alguien responde que ya está activo
-    if (evento.data.tipo === 'SESION_ACTIVA' && instanciaActual === evento.data.instancia) {
-        document.body.innerHTML = `
-            <div style="display:flex; height:100vh; width:100%; justify-content:center; align-items:center; background:var(--bg-color); flex-direction:column; text-align:center; padding: 20px;">
-                <h2 style="color:var(--danger-color); margin-bottom:15px;">⚠️ Acceso Bloqueado</h2>
-                <p style="font-size:1.1rem;">El terminal <b>${instanciaActual}</b> ya está abierto en otra pestaña o ventana.</p>
-                <p style="color:#666; margin-top:10px;">Cierre esta pestaña y continúe trabajando en la ventana original para evitar conflictos en el sistema.</p>
-            </div>`;
-    }
+  // Si recibimos que hay una sesión activa, bloqueamos incondicionalmente
+  if (evento.data.tipo === 'SESION_ACTIVA') {
+      document.body.innerHTML = `
+          <div style="display:flex; height:100vh; width:100%; justify-content:center; align-items:center; background:var(--bg-color); flex-direction:column; text-align:center; padding: 20px;">
+              <h2 style="color:var(--danger-color); margin-bottom:15px;">⚠️ Acceso Bloqueado</h2>
+              <p style="font-size:1.1rem;">Ya existe un terminal (${evento.data.instancia}) ejecutándose en este navegador.</p>
+              <p style="color:#666; margin-top:10px;">Por motivos de seguridad e integridad contable, solo se permite operar una caja por navegador. Utilice otro navegador o dispositivo si necesita abrir otra caja.</p>
+          </div>`;
+  }
 };
 
 
@@ -353,19 +358,21 @@ function intentarAccesoOffline(clave) {
 }
 
 function confirmarApertura() {
+  
   console.log("[DEBUG LOGIN] 8. Botón 'Confirmar y Entrar' presionado en modal de apertura.");
-    const fondo = leerMontoLimpiado('fondo-inicial');
+  const fondo = leerMontoLimpiado('fondo-inicial');
     
     // Inicializamos el objeto del turno
     turnoActual = {
-        fondoInicial: fondo,
-        ventasEfectivo: 0,
-        abonosEfectivo: 0,
-        retiros: 0,
-        fechaApertura: new Date().toISOString()
-    };
+      fondoInicial: fondo,
+      ventasEfectivo: 0,
+      abonosEfectivo: 0,
+      retiros: 0,
+      fechaApertura: new Date().toISOString()
+  };
+
     console.log("[DEBUG LOGIN] 9. Guardando turnoActual en localStorage:", turnoActual);
-    localStorage.setItem('turnoActual', JSON.stringify(turnoActual));
+    localStorage.setItem(`turnoActual_${instanciaPendienteLogin}`, JSON.stringify(turnoActual));
     
     document.getElementById('modal-apertura').style.display = 'none';
     console.log("[DEBUG LOGIN] 10. Pasando instancia a procesarAcceso:"),
@@ -412,7 +419,17 @@ function prepararAperturaCaja(instancia, ultimoDeclaradoBackend = null, descuadr
 async function procesarAcceso(instancia) {
   console.log("[DEBUG LOGIN] 11. Ejecutando procesarAcceso para la instancia:", instancia);
   instanciaActual = instancia;
+  // Guardar en sessionStorage para aislarlo a ESTA pestaña
+  sessionStorage.setItem("instancia", instanciaActual);
   localStorage.setItem("instancia", instanciaActual);
+
+
+   // Generar y aislar el token
+   const tokenSesion = "SES-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9);
+   sessionStorage.setItem("tokenSesion", tokenSesion);
+ 
+   encolarSesion("entrada", instanciaActual);
+
   console.log("[DEBUG LOGIN] 12. Encolando sesión de entrada...");
   // 1. Encolar el registro de "entrada" de manera local
   encolarSesion("entrada", instanciaActual);
@@ -425,10 +442,10 @@ async function procesarAcceso(instancia) {
   document.getElementById("instancia-nombre").innerText = instanciaActual;
 
   // 3. Cargar datos
-  console.log("[DEBUG LOGIN] 14. Cargando catálogos, clientes y notificaciones...");
   await cargarCatalogo();
   cargarClientes();
   chequearNotificacionesSilencioso();
+  sincronizarSesionesPendientes();
 
   // 4. Intentar enviar la sesión a Google Sheets inmediatamente (si hay red)
   console.log("[DEBUG LOGIN] 15. Proceso finalizado. Intentando sincronizar sesiones...");
@@ -1219,15 +1236,12 @@ function procesarVenta() {
 
       clientesLocal.push(clienteObj);
 
-      // Encolar cliente para sincronización
-      let clientesPendientes =
-        JSON.parse(localStorage.getItem("clientesPendientes")) || [];
+      // Encolar cliente para sincronización usando instanciaActual
+      const claveClientes = `clientesPendientes_${instanciaActual}`;
+      let clientesPendientes = JSON.parse(localStorage.getItem(claveClientes)) || [];
       // TRUCO: Enviamos el cliente a la nube con deuda 0. La deuda real se sumará cuando se procesen sus ventas.
       clientesPendientes.push({ ...clienteObj, deuda: 0 });
-      localStorage.setItem(
-        "clientesPendientes",
-        JSON.stringify(clientesPendientes)
-      );
+      localStorage.setItem(claveClientes, JSON.stringify(clientesPendientes));
     }
     localStorage.setItem("clientesLocal", JSON.stringify(clientesLocal));
   }
@@ -1310,22 +1324,25 @@ function procesarVenta() {
 
 
 function encolarVentas(nuevasVentas) {
-  let colaPendientes =
-    JSON.parse(localStorage.getItem("ventasPendientes")) || [];
-  colaPendientes = colaPendientes.concat(nuevasVentas);
-  localStorage.setItem("ventasPendientes", JSON.stringify(colaPendientes));
 
-  // Si hay internet, intentar sincronizar inmediatamente
+  const claveCola = `ventasPendientes_${instanciaActual}`;
+  let colaPendientes = JSON.parse(localStorage.getItem(claveCola)) || [];
+  
+  colaPendientes = colaPendientes.concat(nuevasVentas);
+  localStorage.setItem(claveCola, JSON.stringify(colaPendientes));
+
   if (navigator.onLine) {
     sincronizarVentasPendientes();
   }
 }
 
 async function sincronizarVentasPendientes() {
-  if (isSincronizandoVentas) return; // Candado: Evita dobles envíos
 
-  let colaPendientes =
-    JSON.parse(localStorage.getItem("ventasPendientes")) || [];
+  if (isSincronizandoVentas) return; 
+
+  const claveCola = `ventasPendientes_${instanciaActual}`;
+  let colaPendientes = JSON.parse(localStorage.getItem(claveCola)) || [];
+  
   if (colaPendientes.length === 0) return;
 
   isSincronizandoVentas = true;
@@ -1336,27 +1353,21 @@ async function sincronizarVentasPendientes() {
       action: "sincronizar_ventas",
       payload: { ventas: colaPendientes },
     };
-    const response = await fetch(API_URL, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
+    const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
     const data = await response.json();
 
     if (data.success) {
-      // En lugar de borrar TODA la cola de golpe (lo que perdería ventas hechas en offline mientras cargaba),
-      // solo eliminamos de la cola la cantidad de ventas que acabamos de enviar exitosamente.
-      let colaActual =
-        JSON.parse(localStorage.getItem("ventasPendientes")) || [];
+      let colaActual = JSON.parse(localStorage.getItem(claveCola)) || [];
       let colaRestante = colaActual.slice(colaPendientes.length);
-      localStorage.setItem("ventasPendientes", JSON.stringify(colaRestante));
-      console.log("Sincronización de ventas exitosa");
+      localStorage.setItem(claveCola, JSON.stringify(colaRestante));
     }
   } catch (error) {
-    console.warn("Fallo al sincronizar ventas. Se intentará más tarde.", error);
+    console.warn("Fallo al sincronizar ventas.", error);
   } finally {
-    isSincronizandoVentas = false; // Liberamos el candado
+    isSincronizandoVentas = false;
     ocultarLoading();
   }
+  
 }
 
 // Inicialización de la App
@@ -1615,12 +1626,13 @@ function calcularMetricasOffline() {
     }
   });
 
-  let abonosPendientes =
-    JSON.parse(localStorage.getItem("abonosPendientes")) || [];
+  const claveAbonos = `abonosPendientes_${instanciaActual}`;
+  let abonosPendientes = JSON.parse(localStorage.getItem(claveAbonos)) || [];
   let abonosPeriodoOffline = 0;
   abonosPendientes.forEach((abono) => {
     abonosPeriodoOffline += parseFloat(abono.monto) || 0;
   });
+
 
   let listadoProductosVendidos = [];
   for (let prod in desgloseProductosMap) {
@@ -1827,8 +1839,8 @@ function verificarClienteNuevo() {
 }
 
 async function sincronizarClientesPendientes() {
-  let clientesPendientes =
-    JSON.parse(localStorage.getItem("clientesPendientes")) || [];
+  const claveClientes = `clientesPendientes_${instanciaActual}`;
+  let clientesPendientes = JSON.parse(localStorage.getItem(claveClientes)) || [];
 
   // Si no hay clientes nuevos en cola, salimos
   if (clientesPendientes.length === 0) return;
@@ -1845,18 +1857,16 @@ async function sincronizarClientesPendientes() {
     const data = await response.json();
 
     if (data.success) {
-      // Si el servidor confirmó que los guardó, limpiamos la cola local
-      localStorage.removeItem("clientesPendientes");
+      // Si el servidor confirmó que los guardó, limpiamos la cola local específica
+      localStorage.removeItem(claveClientes);
       console.log("Clientes nuevos sincronizados con éxito en Google Sheets.");
     } else {
       console.warn("El servidor rechazó la sincronización de clientes:", data);
     }
   } catch (error) {
-    console.warn(
-      "Fallo al sincronizar clientes. Se intentará en segundo plano más tarde.",
-      error
-    );
+    console.warn("Fallo al sincronizar clientes. Se intentará en segundo plano más tarde.", error);
   }
+
 }
 
 // ==========================================
@@ -1937,11 +1947,12 @@ async function ejecutarAbono() {
     fecha: new Date().toISOString(),
   };
 
-  // 2. ENCOLAR ABONO EN LOCALSTORAGE
-  let abonosPendientes =
-    JSON.parse(localStorage.getItem("abonosPendientes")) || [];
-  abonosPendientes.push(nuevoAbono);
-  localStorage.setItem("abonosPendientes", JSON.stringify(abonosPendientes));
+// 2. ENCOLAR ABONO EN LOCALSTORAGE CON INSTANCIA
+const claveAbonos = `abonosPendientes_${instanciaActual}`;
+let abonosPendientes = JSON.parse(localStorage.getItem(claveAbonos)) || [];
+abonosPendientes.push(nuevoAbono);
+localStorage.setItem(claveAbonos, JSON.stringify(abonosPendientes));
+
 
   // 3. SINCRONIZAR O AVISAR
   if (navigator.onLine) {
@@ -1969,8 +1980,9 @@ async function ejecutarAbono() {
 }
 
 async function sincronizarAbonosPendientes() {
-  let abonosPendientes =
-    JSON.parse(localStorage.getItem("abonosPendientes")) || [];
+  const claveAbonos = `abonosPendientes_${instanciaActual}`;
+  let abonosPendientes = JSON.parse(localStorage.getItem(claveAbonos)) || [];
+  
   if (abonosPendientes.length === 0) return;
 
   try {
@@ -1985,14 +1997,11 @@ async function sincronizarAbonosPendientes() {
     const data = await response.json();
 
     if (data.success) {
-      localStorage.removeItem("abonosPendientes");
+      localStorage.removeItem(claveAbonos);
       console.log("Abonos offline sincronizados con éxito.");
     }
   } catch (error) {
-    console.warn(
-      "Fallo al sincronizar abonos. Se reintentará en segundo plano.",
-      error
-    );
+    console.warn("Fallo al sincronizar abonos. Se reintentará en segundo plano.", error);
   }
 }
 
@@ -2023,8 +2032,9 @@ function ejecutarEgreso() {
   turnoActual.retiros += monto;
   localStorage.setItem('turnoActual', JSON.stringify(turnoActual));
 
-  // Encolar egreso
-  let egresosPendientes = JSON.parse(localStorage.getItem('egresosPendientes')) || [];
+  // Encolar egreso asociado a la instancia
+  const claveEgresos = `egresosPendientes_${instanciaActual}`;
+  let egresosPendientes = JSON.parse(localStorage.getItem(claveEgresos)) || [];
   egresosPendientes.push({
       tpv: instanciaActual,
       fecha: new Date().toISOString(),
@@ -2032,7 +2042,8 @@ function ejecutarEgreso() {
       monto: monto,
       concepto: concepto
   });
-  localStorage.setItem('egresosPendientes', JSON.stringify(egresosPendientes));
+  localStorage.setItem(claveEgresos, JSON.stringify(egresosPendientes));
+
 
   cerrarModal('modal-egreso');
   mostrarToast("Retiro registrado correctamente", "success");
@@ -2042,7 +2053,8 @@ function ejecutarEgreso() {
 
 
 async function sincronizarEgresos() {
-  let egresosPendientes = JSON.parse(localStorage.getItem('egresosPendientes')) || [];
+  const claveEgresos = `egresosPendientes_${instanciaActual}`;
+  let egresosPendientes = JSON.parse(localStorage.getItem(claveEgresos)) || [];
   if (egresosPendientes.length === 0) return;
 
   try {
@@ -2057,12 +2069,13 @@ async function sincronizarEgresos() {
       const data = await response.json();
 
       if (data.success) {
-          localStorage.removeItem('egresosPendientes');
+          localStorage.removeItem(claveEgresos);
           console.log("Egresos sincronizados con éxito.");
       }
   } catch (error) {
       console.warn("Fallo al sincronizar egresos. Se reintentará más tarde.", error);
   }
+
 }
 
 
