@@ -1362,7 +1362,9 @@ function encolarVentas(nuevasVentas) {
 }
 
 async function sincronizarVentasPendientes() {
-
+  
+  if (!navigator.onLine) return;
+  
   if (isSincronizandoVentas) return; 
 
   const claveCola = `ventasPendientes_${instanciaActual}`;
@@ -1873,6 +1875,7 @@ function verificarClienteNuevo() {
 }
 
 async function sincronizarClientesPendientes() {
+  if (!navigator.onLine) return;
   const claveClientes = `clientesPendientes_${instanciaActual}`;
   let clientesPendientes = JSON.parse(localStorage.getItem(claveClientes)) || [];
 
@@ -2016,6 +2019,7 @@ localStorage.setItem(claveAbonos, JSON.stringify(abonosPendientes));
 }
 
 async function sincronizarAbonosPendientes() {
+  if (!navigator.onLine) return;
   const claveAbonos = `abonosPendientes_${instanciaActual}`;
   let abonosPendientes = JSON.parse(localStorage.getItem(claveAbonos)) || [];
   
@@ -2089,6 +2093,7 @@ function ejecutarEgreso() {
 
 
 async function sincronizarEgresos() {
+  if (!navigator.onLine) return;
   const claveEgresos = `egresosPendientes_${instanciaActual}`;
   let egresosPendientes = JSON.parse(localStorage.getItem(claveEgresos)) || [];
   if (egresosPendientes.length === 0) return;
@@ -2194,6 +2199,7 @@ function mostrarConfirmacion(mensaje) {
 }
 
 async function sincronizarCierresPendientes() {
+  if (!navigator.onLine) return;
   let cierresPendientes = JSON.parse(localStorage.getItem('cierresPendientes')) || [];
   if (cierresPendientes.length === 0) return;
 
