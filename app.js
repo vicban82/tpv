@@ -1421,11 +1421,9 @@ function encolarVentas(nuevasVentas) {
 
 async function sincronizarVentasPendientes() {
   
-  if (!navigator.onLine) return;
-  
+  console.log("isSincronizandoVentas en sincronizarVentasPendientes",isSincronizandoVentas);
   if (isSincronizandoVentas) return; 
-
-  const claveCola = `ventasPendientes_${instanciaActual}`;
+   const claveCola = `ventasPendientes_${instanciaActual}`;
   let colaPendientes = JSON.parse(localStorage.getItem(claveCola)) || [];
   
   if (colaPendientes.length === 0) return;
