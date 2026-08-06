@@ -1,95 +1,60 @@
-// Nombre de la caché (Cambia el "v1" a "v2", "v3" etc., cuando actualices tu código para forzar la recarga)
-const CACHE_NAME = 'tpv-cache-v220';
-
-// Archivos críticos que deben guardarse para que la app funcione sin internet
-const urlsToCache = [
-  './' + VERSION,
-  './index.html' + VERSION,
-  './styles.css' + VERSION,  
-  './app.js' + VERSION,
-  './manifest.json',
-  './FavIcon.png',
-  './logo.png',
-  // Si agregas los iconos, descomenta las siguientes líneas:
-  // './icon-192x192.png',
-  // './icon-512x512.png'
-
-
+const CACHE_NAME = 'almacen-v235'; // Incrementa esto cada vez que hagas cambios
+const ASSETS = [
+    './',
+    './index.html',
+    './styles.css',
+    './app.js',
+    './FavIcon.png',
+    './logo.png',
 ];
 
-// ==========================================
-// 1. FASE DE INSTALACIÓN (Modificada)
-// ==========================================
+// 1. Instalar y forzar al SW entrante a convertirse en el SW activo inmediatamente
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('SW: Archivos cacheados correctamente (Forzando red)');
-        // En lugar de cache.addAll(), forzamos la recarga ignorando la caché HTTP del navegador
-        return Promise.all(
-          urlsToCache.map(url => {
-            return fetch(new Request(url, { cache: 'reload' }))
-              .then(response => {
-                if (!response.ok) {
-                  throw new Error(`Error al cachear: ${url}`);
-                }
-                return cache.put(url, response);
-              });
-          })
-        );
-      })
-  );
-  // Fuerza a que este Service Worker se active inmediatamente
-  self.skipWaiting(); 
+    self.skipWaiting(); // No esperar a que se cierren las pestañas viejas
+    event.waitUntil(
+        caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
+    );
 });
 
-
-// ==========================================
-// 2. FASE DE ACTIVACIÓN
-// ==========================================
-// Sirve para limpiar cachés viejas si cambiaste la versión (ej. de v1 a v2)
+// 2. Activar y LIMPIAR las cachés antiguas de versiones anteriores (ej. almacen-v220)
 self.addEventListener('activate', event => {
-  const cacheAllowlist = [CACHE_NAME];
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheAllowlist.indexOf(cacheName) === -1) {
-            console.log('SW: Borrando caché antigua', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
-  );
-  // Toma el control de las páginas abiertas inmediatamente
-  self.clients.claim(); 
+    event.waitUntil(
+        caches.keys().then(cacheNames => {
+            return Promise.all(
+                cacheNames.map(cache => {
+                    if (cache !== CACHE_NAME) {
+                        console.log('Eliminando caché antigua:', cache);
+                        return caches.delete(cache);
+                    }
+                })
+            );
+        }).then(() => self.clients.claim()) // Tomar control de las páginas inmediatamente
+    );
 });
 
-// ==========================================
-// 3. INTERCEPTOR DE PETICIONES (Estrategias)
-// ==========================================
+// 3. Interceptar peticiones (Estrategia Network First para código de la app)
 self.addEventListener('fetch', event => {
-  // EXCEPCIÓN: Si la petición va a tu Google Apps Script (la API), NO usar caché.
-  // Queremos que pase directo para que app.js maneje los datos frescos o los errores offline.
-  if (event.request.url.includes('script.google.com') || event.request.url.includes('google.com/favicon.ico')) {
-    return;
-  }
+    // Excluir peticiones a Google Apps Script
+    if (event.request.url.includes('script.google.com') || event.request.url.includes('google.com/favicon.ico')) {
+        return;     
+    }
 
-  // ESTRATEGIA "Cache-First": Para la interfaz (HTML, CSS, JS)
-  // Busca primero en la caché; si no está, va a internet.
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // Devuelve el archivo desde la caché si existe
-        if (response) {
-          return response;
-        }
-        // Si no está cacheado, lo pide a la red
-        return fetch(event.request).catch(() => {
-          // Opcional: Aquí podrías retornar una página de "Error general offline"
-          console.warn('SW: Recurso no encontrado en caché ni en red', event.request.url);
-        });
-      })
-  );
+    event.respondWith(
+        // Intentar obtener de la red primero para tener siempre la última versión
+        fetch(event.request)
+            .then(networkResponse => {
+                // Si la red responde bien, actualizamos la caché y devolvemos la respuesta
+                if (networkResponse && networkResponse.status === 200 && event.request.method === 'GET') {
+                    const responseClone = networkResponse.clone();
+                    caches.open(CACHE_NAME).then(cache => {
+                        cache.put(event.request, responseClone);
+                    });
+                }
+                return networkResponse;
+            })
+            .catch(() => {
+                // Si NO hay red (Offline), usamos la versión guardada en caché
+                return caches.match(event.request);
+            })
+    );
 });
