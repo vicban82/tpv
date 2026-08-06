@@ -381,6 +381,19 @@ function confirmarApertura() {
 
 function prepararAperturaCaja(instancia, ultimoDeclaradoBackend = null, descuadreAcumulado = 0) {
   instanciaPendienteLogin = instancia;
+
+  // 1. Verificamos si la instancia ya tiene un turno abierto que no ha sido cerrado.
+  const turnoGuardado = localStorage.getItem(`turnoActual_${instancia}`);
+  
+  if (turnoGuardado) {
+      // 2. Si existe, lo restauramos en la variable global y saltamos directo al TPV
+      turnoActual = JSON.parse(turnoGuardado);
+      mostrarToast("Turno anterior recuperado automáticamente.", "info");
+      procesarAcceso(instancia);
+      return; // Detenemos la ejecución para que NO se muestre el modal de apertura
+  }
+
+
   const inputFondo = document.getElementById('fondo-inicial');
   
   if (ultimoDeclaradoBackend !== null) {
@@ -419,38 +432,40 @@ function prepararAperturaCaja(instancia, ultimoDeclaradoBackend = null, descuadr
 async function procesarAcceso(instancia) {
   console.log("[DEBUG LOGIN] 11. Ejecutando procesarAcceso para la instancia:", instancia);
   instanciaActual = instancia;
+  
   // Guardar en sessionStorage para aislarlo a ESTA pestaña
   sessionStorage.setItem("instancia", instanciaActual);
   localStorage.setItem("instancia", instanciaActual);
 
-
-   // Generar y aislar el token
-   const tokenSesion = "SES-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9);
-   sessionStorage.setItem("tokenSesion", tokenSesion);
- 
-   encolarSesion("entrada", instanciaActual);
+  // Generar y aislar el token
+  const tokenSesion = "SES-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9);
+  sessionStorage.setItem("tokenSesion", tokenSesion);
 
   console.log("[DEBUG LOGIN] 12. Encolando sesión de entrada...");
-  // 1. Encolar el registro de "entrada" de manera local
+  
+  // 1. Encolar el registro de "entrada" de manera local (SOLO UNA VEZ)[cite: 1]
   encolarSesion("entrada", instanciaActual);
 
-  // 2. Transición de UI
+  // 2. Transición de UI[cite: 1]
   console.log("[DEBUG LOGIN] 13. Ocultando login-screen y mostrando tpv-screen...");
   document.getElementById("login-screen").classList.remove("active");
   document.getElementById("tpv-screen").classList.add("active");
   cargarNombreTPV();
   document.getElementById("instancia-nombre").innerText = instanciaActual;
 
-  // 3. Cargar datos
+  // 3. Cargar datos[cite: 1]
   await cargarCatalogo();
   cargarClientes();
   chequearNotificacionesSilencioso();
-  sincronizarSesionesPendientes();
 
   // 4. Intentar enviar la sesión a Google Sheets inmediatamente (si hay red)
   console.log("[DEBUG LOGIN] 15. Proceso finalizado. Intentando sincronizar sesiones...");
-  sincronizarSesionesPendientes();
+  
+  // CORRECCIÓN: Llamamos a la sincronización UNA SOLA VEZ y usamos 'await' 
+  // para asegurarnos de que la promesa se resuelva antes de continuar.
+  await sincronizarSesionesPendientes();
 }
+
 
 // ==========================================
 // CERRAR SESIÓN (OFFLINE-FRIENDLY)
@@ -544,29 +559,36 @@ async function ejecutarCierreCaja() {
       const data = await response.json();
 
       if (data.success) {
-          mostrarToast(`Cierre procesado sin descuadres.`, "success");
-
-          // Limpieza estricta de la UI y Sesión
-          cerrarModal('modal-cierre');
-          encolarSesion('salida', instanciaActual); 
-          await sincronizarSesionesPendientes(); // Subir la salida de inmediato
-          
-          // Actualizamos la caché local por si abren mañana sin red
-          localStorage.setItem(`ultimoSaldoCaja_${instanciaActual}`, declarado);
-          
-          instanciaActual = null;
-          turnoActual = null;
-          carrito = [];
-          localStorage.removeItem('instancia');
-          localStorage.removeItem('turnoActual');
-          localStorage.removeItem('tokenSesion');
-
-          document.getElementById('tpv-screen').classList.remove('active');
-          document.getElementById('login-screen').classList.add('active');
-
-          setTimeout(() => {
-              generarTicketCierre(reporteCierre);
-          }, 300);
+        mostrarToast(`Cierre procesado sin descuadres.`, "success");
+    
+        // Limpieza estricta de la UI y Sesión
+        cerrarModal('modal-cierre');
+        encolarSesion('salida', instanciaActual); 
+        await sincronizarSesionesPendientes(); 
+        
+        // Actualizamos la caché local por si abren mañana sin red
+        localStorage.setItem(`ultimoSaldoCaja_${instanciaActual}`, declarado);
+        
+        // --- CORRECCIÓN AQUÍ ---
+        // 1. Borramos el turno correcto de la memoria MIENTRAS instanciaActual aún existe
+        localStorage.removeItem(`turnoActual_${instanciaActual}`);
+        
+        // 2. Opcional: Borramos la llave genérica antigua por si quedó "basura" de sesiones pasadas
+        localStorage.removeItem('turnoActual'); 
+        
+        // 3. Ahora sí, destruimos las variables globales
+        instanciaActual = null;
+        turnoActual = null;
+        carrito = [];
+        localStorage.removeItem('instancia');
+        localStorage.removeItem('tokenSesion');
+    
+        document.getElementById('tpv-screen').classList.remove('active');
+        document.getElementById('login-screen').classList.add('active');
+    
+        setTimeout(() => {
+            generarTicketCierre(reporteCierre);
+        }, 300);  
       } else {
           mostrarToast("El servidor rechazó el cierre. Intente nuevamente.", "error");
       }
@@ -1289,7 +1311,7 @@ function procesarVenta() {
   // Validación de seguridad: Solo sumamos si el turno actual fue creado exitosamente
   if (metodoPago === 'efectivo' && turnoActual) {
     turnoActual.ventasEfectivo += (montoPagado - vueltoTotal); 
-    localStorage.setItem('turnoActual', JSON.stringify(turnoActual));
+    localStorage.setItem(`turnoActual_${instanciaActual}`, JSON.stringify(turnoActual));
   }
 
     // --- NUEVO: Leer el estado del CheckBox ---
@@ -1633,6 +1655,14 @@ function calcularMetricasOffline() {
     abonosPeriodoOffline += parseFloat(abono.monto) || 0;
   });
 
+    // --- NUEVO CÓDIGO: Calcular los retiros/egresos del periodo offline ---
+    const claveEgresos = `egresosPendientes_${instanciaActual}`;
+    let egresosPendientes = JSON.parse(localStorage.getItem(claveEgresos)) || [];
+    let retirosPeriodoOffline = 0;
+    egresosPendientes.forEach((egreso) => {
+      retirosPeriodoOffline += parseFloat(egreso.monto) || 0;
+    });
+    // ------------------------------------------------------------------------
 
   let listadoProductosVendidos = [];
   for (let prod in desgloseProductosMap) {
@@ -1653,14 +1683,15 @@ function calcularMetricasOffline() {
     inversion: inversion,
     ganancia: ganancia,
     deuda_total: deudaTotalLocal,
-    abonos_periodo: 0, // En offline puro, los abonos no se guardan en caché actualmente
     listado_deudores: deudoresLocal,
     desglose_productos: listadoProductosVendidos,
     abonos_periodo: abonosPeriodoOffline,
-    flujo_caja: importePagado + abonosPeriodoOffline,
+    // --- LÍNEA ACTUALIZADA CON LA NUEVA FÓRMULA ---
+    flujo_caja: importePagado + abonosPeriodoOffline - retirosPeriodoOffline, 
     promedio_ventas_x_dias: cantidadVentas.size / diasVenta,
     promedio_ganancias_x_dias: ganancia / diasVenta,
   };
+
 
   renderizarMetricas(metricasLocales);
 }
@@ -1678,12 +1709,12 @@ function renderizarMetricas(m) {
   document.getElementById(
     "dash-ventas-credito"
   ).innerText = `$${m.importe_credito.toFixed(2)}`;
-  document.getElementById("dash-inversion").innerText = `$${m.inversion.toFixed(
-    2
+  /*document.getElementById("dash-inversion").innerText = `$${m.inversion.toFixed(
+  2
   )}`;
   document.getElementById("dash-ganancia").innerText = `$${m.ganancia.toFixed(
     2
-  )}`;
+  )}`; */
 
   // Mapeo Cuentas por Cobrar
   document.getElementById(
@@ -1701,9 +1732,9 @@ function renderizarMetricas(m) {
   if (elPromVentas)
     elPromVentas.innerText = m.promedio_ventas_x_dias.toFixed(2);
 
-  const elPromGanancia = document.getElementById("dash-prom-ganancia");
+  /* const elPromGanancia = document.getElementById("dash-prom-ganancia");
   if (elPromGanancia)
-    elPromGanancia.innerText = `$${m.promedio_ganancias_x_dias.toFixed(2)}`;
+    elPromGanancia.innerText = `$${m.promedio_ganancias_x_dias.toFixed(2)}`; */
 
   // NUEVO: Renderizar tabla de deudores
   const tbody = document.getElementById("body-deudores");
@@ -1969,8 +2000,10 @@ localStorage.setItem(claveAbonos, JSON.stringify(abonosPendientes));
 
   if (metodo === 'efectivo') {
     turnoActual.abonosEfectivo += monto;
-    localStorage.setItem('turnoActual', JSON.stringify(turnoActual));
-}
+    // CORRECCIÓN AQUÍ:
+    localStorage.setItem(`turnoActual_${instanciaActual}`, JSON.stringify(turnoActual));
+  }
+
 
 
   // Limpieza de UI
@@ -2030,7 +2063,7 @@ function ejecutarEgreso() {
 
   // Descontar del turno local
   turnoActual.retiros += monto;
-  localStorage.setItem('turnoActual', JSON.stringify(turnoActual));
+  localStorage.setItem(`turnoActual_${instanciaActual}`, JSON.stringify(turnoActual));
 
   // Encolar egreso asociado a la instancia
   const claveEgresos = `egresosPendientes_${instanciaActual}`;
