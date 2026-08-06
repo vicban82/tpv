@@ -5,8 +5,9 @@ let carrito = [];
 let clientesLocal = [];
 let isSincronizandoVentas = false;
 
-let instanciaActual = sessionStorage.getItem("instancia") || null;
-let tokenSesionLocal = sessionStorage.getItem("tokenSesion") || null;
+let instanciaActual = sessionStorage.getItem("instancia") || localStorage.getItem("instancia") || null;
+let tokenSesionLocal = sessionStorage.getItem("tokenSesion") || localStorage.getItem("tokenSesion") || null;
+
 
 // Para recuperar el turno al recargar la página:
 let turnoActual = instanciaActual ? JSON.parse(localStorage.getItem(`turnoActual_${instanciaActual}`)) : null;
@@ -437,9 +438,11 @@ async function procesarAcceso(instancia) {
   sessionStorage.setItem("instancia", instanciaActual);
   localStorage.setItem("instancia", instanciaActual);
 
-  // Generar y aislar el token
-  const tokenSesion = "SES-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9);
-  sessionStorage.setItem("tokenSesion", tokenSesion);
+ // Generar y aislar el token
+ const tokenSesion = "SES-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9);
+ sessionStorage.setItem("tokenSesion", tokenSesion);
+ localStorage.setItem("tokenSesion", tokenSesion); // <-- NUEVA LÍNEA AÑADIDA
+
 
   console.log("[DEBUG LOGIN] 12. Encolando sesión de entrada...");
   
