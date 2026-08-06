@@ -1,5 +1,5 @@
 // Nombre de la caché (Cambia el "v1" a "v2", "v3" etc., cuando actualices tu código para forzar la recarga)
-const CACHE_NAME = 'tpv-cache-v231';
+const CACHE_NAME = 'tpv-cache-v220';
 
 // Archivos críticos que deben guardarse para que la app funcione sin internet
 const urlsToCache = [
@@ -72,8 +72,8 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   // EXCEPCIÓN: Si la petición va a tu Google Apps Script (la API), NO usar caché.
   // Queremos que pase directo para que app.js maneje los datos frescos o los errores offline.
-  if (event.request.url.includes('script.google.com')) {
-    return; 
+  if (event.request.url.includes('script.google.com') || event.request.url.includes('google.com/favicon.ico')) {
+    return;
   }
 
   // ESTRATEGIA "Cache-First": Para la interfaz (HTML, CSS, JS)
