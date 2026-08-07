@@ -701,7 +701,7 @@ function generarTicketCierre(reporte) {
               window.onload = function() { 
                   setTimeout(function() {
                       window.print();
-                  }, 300);
+                  }, 3000);
               };
               window.onafterprint = function() {
                   window.close();
@@ -2387,7 +2387,7 @@ function generarTicketVenta(idVenta, carritoVenta, total, pagado, vuelto, metodo
                   // Dar margen al motor del móvil para calcular el layout antes de imprimir
                   setTimeout(function() {
                       window.print();
-                  }, 300);
+                  }, 3000);
               };
               // Evento nativo: Cierra la pestaña SOLO cuando la vista previa o impresión haya finalizado
               window.onafterprint = function() {
