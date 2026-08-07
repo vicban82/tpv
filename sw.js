@@ -1,4 +1,4 @@
-const CACHE_NAME = 'almacen-v236'; // Incrementa esto cada vez que hagas cambios
+const CACHE_NAME = 'almacen-v237'; // Incrementa esto cada vez que hagas cambios
 const ASSETS = [
     './',
     './index.html',
