@@ -661,9 +661,6 @@ async function ejecutarCierreCaja() {
 }
 
 
-
-
-
 // Generador del Ticket 58mm/80mm (Texto para imprimir)
 function generarTicketCierre(reporte) {
   let ventanaImpresion = window.open('', '_blank');
@@ -674,25 +671,44 @@ function generarTicketCierre(reporte) {
       return; 
   }
 
-  let html = `
-      <div style="font-family: monospace; width: 300px; text-align: center;">
-          <h2>REPORTE Z - CIERRE</h2>
-          <p><strong>TPV:</strong> ${reporte.tpv}</p>
-          <p><strong>Fecha:</strong> ${new Date(reporte.fechaCierre).toLocaleString()}</p>
-          <hr style="border-top: 1px dashed black;">
-          <div style="text-align: left;">
-              <p>Fondo Inicial: $${reporte.fondoInicial.toFixed(2)}</p>
-              <p>Retiros/Egresos: -$${reporte.retirosTotales.toFixed(2)}</p>
-              <p><strong>Efectivo Teórico: $${reporte.teorico.toFixed(2)}</strong></p>
+   let html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Cierre de Caja</title>
+      </head>
+      <body style="margin:0; padding:0;">
+          <div style="font-family: monospace; width: 300px; text-align: center; padding: 5px;">
+              <h2>REPORTE Z - CIERRE</h2>
+              <p><strong>TPV:</strong> ${reporte.tpv}</p>
+              <p><strong>Fecha:</strong> ${new Date(reporte.fechaCierre).toLocaleString()}</p>
               <hr style="border-top: 1px dashed black;">
-              <p>Efectivo Físico (Declarado): $${reporte.declarado.toFixed(2)}</p>
-              <p><strong>Diferencia: $${reporte.diferencia.toFixed(2)}</strong></p>
+              <div style="text-align: left;">
+                  <p>Fondo Inicial: $${reporte.fondoInicial.toFixed(2)}</p>
+                  <p>Retiros/Egresos: -$${reporte.retirosTotales.toFixed(2)}</p>
+                  <p><strong>Efectivo Teórico: $${reporte.teorico.toFixed(2)}</strong></p>
+                  <hr style="border-top: 1px dashed black;">
+                  <p>Efectivo Físico (Declarado): $${reporte.declarado.toFixed(2)}</p>
+                  <p><strong>Diferencia: $${reporte.diferencia.toFixed(2)}</strong></p>
+              </div>
+              <br><br><br>
+              <p>_________________________</p>
+              <p>Firma Cajero</p>
           </div>
-          <br><br><br>
-          <p>_________________________</p>
-          <p>Firma Cajero</p>
-      </div>
-      <script>window.print(); window.close();</script>
+          <script>
+              window.onload = function() { 
+                  setTimeout(function() {
+                      window.print();
+                  }, 300);
+              };
+              window.onafterprint = function() {
+                  window.close();
+              };
+          </script>
+      </body>
+      </html>
   `;
   ventanaImpresion.document.write(html);
   ventanaImpresion.document.close();
@@ -2325,46 +2341,63 @@ function generarTicketVenta(idVenta, carritoVenta, total, pagado, vuelto, metodo
 
   // Formato HTML del ticket adaptado a 58mm/80mm
   let html = `
-      <div style="font-family: monospace; width: 300px; padding: 5px; color: black; background: white;">
-          <h2 style="text-align: center; margin-bottom: 5px; font-size: 18px;">${nombreComercial}</h2>
-          <p style="text-align: center; margin: 0; font-size: 12px;">Ticket: ${idVenta}</p>
-          <p style="text-align: center; margin: 0; font-size: 12px;">Fecha: ${fecha}</p>
-          ${clienteNombre ? `<p style="text-align: center; margin: 0; font-size: 12px;">Cliente: ${clienteNombre}</p>` : ''}
-          
-          <hr style="border-top: 1px dashed black; margin: 10px 0;">
-          ${itemsHTML}
-          <hr style="border-top: 1px dashed black; margin: 10px 0;">
-          
-          <div style="display:flex; justify-content:space-between; font-weight:bold; font-size: 14px;">
-              <span>TOTAL:</span>
-              <span>$${total.toFixed(2)}</span>
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Ticket ${idVenta}</title>
+      </head>
+      <body style="margin:0; padding:0;">
+          <div style="font-family: monospace; width: 300px; padding: 5px; color: black; background: white;">
+              <h2 style="text-align: center; margin-bottom: 5px; font-size: 18px;">${nombreComercial}</h2>
+              <p style="text-align: center; margin: 0; font-size: 12px;">Ticket: ${idVenta}</p>
+              <p style="text-align: center; margin: 0; font-size: 12px;">Fecha: ${fecha}</p>
+              ${clienteNombre ? `<p style="text-align: center; margin: 0; font-size: 12px;">Cliente: ${clienteNombre}</p>` : ''}
+              
+              <hr style="border-top: 1px dashed black; margin: 10px 0;">
+              ${itemsHTML}
+              <hr style="border-top: 1px dashed black; margin: 10px 0;">
+              
+              <div style="display:flex; justify-content:space-between; font-weight:bold; font-size: 14px;">
+                  <span>TOTAL:</span>
+                  <span>$${total.toFixed(2)}</span>
+              </div>
+              
+              <div style="display:flex; justify-content:space-between; font-size: 12px; margin-top: 8px;">
+                  <span>Método:</span>
+                  <span>${metodoPago.toUpperCase()}</span>
+              </div>
+              
+              ${metodoPago !== 'credito' ? `
+              <div style="display:flex; justify-content:space-between; font-size: 12px;">
+                  <span>Recibido:</span>
+                  <span>$${pagado.toFixed(2)}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size: 12px;">
+                  <span>Vuelto:</span>
+                  <span>$${vuelto.toFixed(2)}</span>
+              </div>` : ''}
+              
+              <br>
+              <p style="text-align: center; font-size: 12px; margin-top: 10px;">¡Gracias por su compra!</p>
           </div>
-          
-          <div style="display:flex; justify-content:space-between; font-size: 12px; margin-top: 8px;">
-              <span>Método:</span>
-              <span>${metodoPago.toUpperCase()}</span>
-          </div>
-          
-          ${metodoPago !== 'credito' ? `
-          <div style="display:flex; justify-content:space-between; font-size: 12px;">
-              <span>Recibido:</span>
-              <span>$${pagado.toFixed(2)}</span>
-          </div>
-          <div style="display:flex; justify-content:space-between; font-size: 12px;">
-              <span>Vuelto:</span>
-              <span>$${vuelto.toFixed(2)}</span>
-          </div>` : ''}
-          
-          <br>
-          <p style="text-align: center; font-size: 12px; margin-top: 10px;">¡Gracias por su compra!</p>
-      </div>
-      <script>
-          window.onload = function() { 
-            window.print(); 
-            setTimeout(() => window.close(), 500); 
-          };
-      </script>
+          <script>
+              window.onload = function() { 
+                  // Dar margen al motor del móvil para calcular el layout antes de imprimir
+                  setTimeout(function() {
+                      window.print();
+                  }, 300);
+              };
+              // Evento nativo: Cierra la pestaña SOLO cuando la vista previa o impresión haya finalizado
+              window.onafterprint = function() {
+                  window.close();
+              };
+          </script>
+      </body>
+      </html>
   `;
+
   
   ventanaImpresion.document.write(html);
   ventanaImpresion.document.close();
